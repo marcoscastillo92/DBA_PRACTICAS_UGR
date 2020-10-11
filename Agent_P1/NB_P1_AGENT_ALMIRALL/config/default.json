@@ -1,0 +1,15 @@
+{
+    "log": false,
+    "silent": false,
+    "system": true,
+    "boot": "jade",
+    "jadeconnection": {
+        "host": "localhost",
+        "port": 1099
+    },
+    "appearance": {
+        "text": [0.5, 0.75, 0.5],
+        "background": [0, 0, 0]
+    }
+    
+}

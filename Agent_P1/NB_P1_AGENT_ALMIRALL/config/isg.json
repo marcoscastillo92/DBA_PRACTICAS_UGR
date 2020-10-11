@@ -1,0 +1,18 @@
+{
+    "log": true,
+    "silent": false,
+    "system": true,
+    "boot": "jade",
+    "jadeconnection": {
+        "host": "isg2.ugr.es",
+        "port": 1099
+    },
+    "analytics": {
+        "assignmentid": 1
+    },
+    "appearance": {
+        "text": [0.5, 0.75, 0.5],
+        "background": [0, 0, 0]
+    }
+    
+}
