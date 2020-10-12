@@ -4,15 +4,18 @@ import IntegratedAgent.IntegratedAgent;
 import jade.core.AID;
 import jade.lang.acl.ACLMessage;
 import com.eclipsesource.json.*;
+import ControlPanel.TTYControlPanel;
+
 
 public class AgentP1 extends IntegratedAgent {
     String receiver;
     JsonObject login_json;
     JsonArray sensors;
     JsonArray options;
-    JsonObject perceptions;
+    JsonArray perceptions;
     String key;
     int width, height, maxflight;
+    TTYControlPanel myControlPanel;
     
     @Override
     public void setup() {
@@ -20,6 +23,7 @@ public class AgentP1 extends IntegratedAgent {
         this.doCheckinPlatform();
         this.doCheckinLARVA();
         receiver = this.whoLarvaAgent();
+        myControlPanel = new TTYControlPanel(getAID());
         _exitRequested = false;
     }
 
@@ -30,13 +34,15 @@ public class AgentP1 extends IntegratedAgent {
         this.generateLogin();
         this.sendMessage(receiver, login_json);
         ACLMessage in = this.retrieveLoginMessage();
-        JsonObject sensors_json = this.readSensors(in);
+        in = this.readSensors(in);
+        this.showInfo(in);
         this.executeAction("moveF");
         _exitRequested = true;
     }
 
     @Override
     protected void takeDown() {
+        this.logoutAgent();
         this.doCheckoutLARVA();
         this.doCheckoutPlatform();
         super.takeDown();
@@ -84,7 +90,7 @@ public class AgentP1 extends IntegratedAgent {
         return in;
     }
     
-    public JsonObject readSensors(ACLMessage in){
+    public ACLMessage readSensors(ACLMessage in){
         ACLMessage out = in.createReply();
         JsonObject read_sensors_json = new JsonObject();
         read_sensors_json.add("command","read");
@@ -98,26 +104,35 @@ public class AgentP1 extends IntegratedAgent {
         String result = sensors_json.get("result").asString();
         if (result.equals("ok")){
             JsonObject details = sensors_json.get("details").asObject();
-            perceptions = details.get("perceptions").asObject();
+            perceptions = details.get("perceptions").asArray();
         }
             
-        return sensors_json;
+        return reply;
     }
     
     public boolean executeAction(String action){
-        String commands_availables = options.toString();
-        if(commands_availables.contains(action)){
-            JsonObject execute_json = new JsonObject();
-            execute_json.add("command","execute");
-            execute_json.add("aciton",action);
-            execute_json.add("key",key);
+        JsonObject execute_json = new JsonObject();
+        execute_json.add("command","execute");
+        execute_json.add("action",action);
+        execute_json.add("key",key);
 
-            this.sendMessage(receiver, execute_json);
-            ACLMessage in = this.blockingReceive();
-            String result = Json.parse(in.getContent()).asObject().get("result").toString();
-            return result.equals("ok");
-        }else{
-            return false;
-        }
+        this.sendMessage(receiver, execute_json);
+        ACLMessage in = this.blockingReceive();
+        String result = Json.parse(in.getContent()).asObject().get("result").toString();
+        return result.equals("ok");
+        
+    }
+
+    private void logoutAgent() {
+        JsonObject execute_json = new JsonObject();
+        execute_json.add("command","logout");
+        
+        this.sendMessage(receiver, execute_json);
+    }
+
+    private void showInfo(ACLMessage in) {
+        myControlPanel.feedData(in, width, height);
+        // width height devueltos por login
+        myControlPanel.fancyShow();
     }
 }
