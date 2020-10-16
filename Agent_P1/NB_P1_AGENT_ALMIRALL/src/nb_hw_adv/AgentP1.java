@@ -6,16 +6,23 @@ import jade.lang.acl.ACLMessage;
 import com.eclipsesource.json.*;
 import ControlPanel.TTYControlPanel;
 
+enum Status {LOGIN, NEEDS_INFO, HAS_ACTIONS, LOGOUT}
 
 public class AgentP1 extends IntegratedAgent {
     String receiver;
-    JsonObject login_json;
-    JsonArray sensors;
-    JsonArray options;
-    JsonArray perceptions;
+    TTYControlPanel myControlPanel;
+    //Login variables
     String key;
     int width, height, maxflight;
-    TTYControlPanel myControlPanel;
+    JsonArray options;
+    JsonArray sensors;
+    String world = "BasePlayground";
+    String [] sensores = {"alive", "distance", "altimeter"};
+    //General use variables
+    JsonArray perceptions;
+    Status status;
+    ACLMessage current;
+    
     
     @Override
     public void setup() {
@@ -24,6 +31,7 @@ public class AgentP1 extends IntegratedAgent {
         this.doCheckinLARVA();
         receiver = this.whoLarvaAgent();
         myControlPanel = new TTYControlPanel(getAID());
+        status = Status.LOGIN;
         _exitRequested = false;
     }
 
@@ -31,13 +39,21 @@ public class AgentP1 extends IntegratedAgent {
     public void plainExecute() {
         //Dialogar con receiver para entrar en el mundo
         // moverse y leer los sensores
-        this.generateLogin();
-        this.sendMessage(receiver, login_json);
-        ACLMessage in = this.retrieveLoginMessage();
-        in = this.readSensors(in);
-        this.showInfo(in);
-        this.executeAction(in, "moveF");
-        _exitRequested = true;
+        switch(status){
+            case LOGIN:
+                current = this.makeLogin();
+                break;
+            case NEEDS_INFO:
+                current = this.readSensors(current);
+                break;
+            case HAS_ACTIONS:
+                this.executeAction(current, "moveF");
+                break;
+            case LOGOUT:
+                _exitRequested = true;
+                break;
+        }
+        this.showInfo(current);
     }
 
     @Override
@@ -48,21 +64,21 @@ public class AgentP1 extends IntegratedAgent {
         super.takeDown();
     }
     
-    protected JsonObject generateLogin(){
+    protected JsonObject generateLogin(String world, String[] sensores){
+        JsonObject login_json;
         //Generate JSON body
         login_json = new JsonObject();
         login_json.add("command","login");
-        login_json.add("world","BasePlayground");
+        login_json.add("world",world);
         
         //Generating JsonArray for sensors
         sensors = new JsonArray();
-        sensors.add("alive");
-        sensors.add("distance");
-        sensors.add("altimeter");
+        for(String sensor : sensores){
+            sensors.add(sensor);
+        }
         
         //Adding array to JSON body
         login_json.add("attach", sensors);
-        
         return login_json;
     }
     
@@ -77,16 +93,21 @@ public class AgentP1 extends IntegratedAgent {
     public ACLMessage retrieveLoginMessage(){
         ACLMessage in = this.blockingReceive();
         String result = this.getStringContent(in, "result");
-        JsonObject answer_json = this.getJsonContent(in);
         if (result.equals("ok")){
             key = this.getStringContent(in, "key");
-            width = answer_json.get("width").asInt();
-            height = answer_json.get("height").asInt();
-            maxflight = answer_json.get("maxflight").asInt();
-            options =  answer_json.get("capabilities").asArray();
+            width = this.getIntContent(in, "width");
+            height = this.getIntContent(in, "height");
+            maxflight = this.getIntContent(in, "maxflight");
+            options =  this.getJsonArrayContent(in, "capabilities");
         }
         
         return in;
+    }
+    
+    public ACLMessage makeLogin(){
+        JsonObject login_json = this.generateLogin(this.world, this.sensores);
+        this.sendMessage(receiver, login_json);
+        return this.retrieveLoginMessage();
     }
     
     public ACLMessage readSensors(ACLMessage in){
@@ -107,16 +128,16 @@ public class AgentP1 extends IntegratedAgent {
         return reply;
     }
     
-    public ACLMessage executeAction(ACLMessage msg, String action){
+    public void executeAction(ACLMessage msg, String action){
         JsonObject execute_json = new JsonObject();
         execute_json.add("command","execute");
         execute_json.add("action",action);
         execute_json.add("key",key);
 
-        return this.replyMessage(msg, execute_json);
+        this.replyMessage(msg, execute_json);
     }
     
-    public ACLMessage replyMessage(ACLMessage in, Object content){
+    public void replyMessage(ACLMessage in, Object content){
         String msg = "";
         //Parseo del contenido a String para añadirlo al mensaje
         if(content instanceof JsonObject){
@@ -130,7 +151,6 @@ public class AgentP1 extends IntegratedAgent {
         ACLMessage out = in.createReply();
         out.setContent(msg);
         this.sendServer(out);
-        return out;
     }
     
     public String getStringContent(ACLMessage msg, String field){
@@ -143,6 +163,14 @@ public class AgentP1 extends IntegratedAgent {
     
     public JsonObject getJsonContent(ACLMessage msg){
         return Json.parse(msg.getContent()).asObject();
+    }
+    
+    public int getIntContent(ACLMessage msg, String field){
+        return Json.parse(msg.getContent()).asObject().get(field).asInt();
+    }
+    
+    public JsonArray getJsonArrayContent(ACLMessage msg, String field){
+        return Json.parse(msg.getContent()).asObject().get(field).asArray();
     }
 
     private void logoutAgent() {
