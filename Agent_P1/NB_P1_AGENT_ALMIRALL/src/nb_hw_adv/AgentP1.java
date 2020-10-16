@@ -36,7 +36,7 @@ public class AgentP1 extends IntegratedAgent {
         ACLMessage in = this.retrieveLoginMessage();
         in = this.readSensors(in);
         this.showInfo(in);
-        this.executeAction("moveF");
+        this.executeAction(in, "moveF");
         _exitRequested = true;
     }
 
@@ -76,11 +76,10 @@ public class AgentP1 extends IntegratedAgent {
     
     public ACLMessage retrieveLoginMessage(){
         ACLMessage in = this.blockingReceive();
-        String answer = in.getContent();
-        JsonObject answer_json = Json.parse(answer).asObject();
-        String result = answer_json.get("result").asString();
+        String result = this.getStringContent(in, "result");
+        JsonObject answer_json = this.getJsonContent(in);
         if (result.equals("ok")){
-            key = answer_json.get("key").asString();
+            key = this.getStringContent(in, "key");
             width = answer_json.get("width").asInt();
             height = answer_json.get("height").asInt();
             maxflight = answer_json.get("maxflight").asInt();
@@ -91,48 +90,70 @@ public class AgentP1 extends IntegratedAgent {
     }
     
     public ACLMessage readSensors(ACLMessage in){
-        ACLMessage out = in.createReply();
         JsonObject read_sensors_json = new JsonObject();
         read_sensors_json.add("command","read");
         read_sensors_json.add("key",key);
-        out.setContent(read_sensors_json.toString());
-        this.sendServer(out);
+        this.replyMessage(in, read_sensors_json);
         
-        ACLMessage reply = this.blockingReceive();
-        JsonObject sensors_json = Json.parse(reply.getContent()).asObject();
-        
-        String result = sensors_json.get("result").asString();
+        ACLMessage reply = this.blockingReceive();        
+        String result = getStringContent(reply, "result");
         if (result.equals("ok")){
-            JsonObject details = sensors_json.get("details").asObject();
+            JsonObject details = getJsonContent(reply, "details");
             perceptions = details.get("perceptions").asArray();
+        }else{
+            System.out.println("[SENSORS] Error: " + result);
         }
             
         return reply;
     }
     
-    public boolean executeAction(String action){
+    public ACLMessage executeAction(ACLMessage msg, String action){
         JsonObject execute_json = new JsonObject();
         execute_json.add("command","execute");
         execute_json.add("action",action);
         execute_json.add("key",key);
 
-        this.sendMessage(receiver, execute_json);
-        ACLMessage in = this.blockingReceive();
-        String result = Json.parse(in.getContent()).asObject().get("result").toString();
-        return result.equals("ok");
+        return this.replyMessage(msg, execute_json);
+    }
+    
+    public ACLMessage replyMessage(ACLMessage in, Object content){
+        String msg = "";
+        //Parseo del contenido a String para añadirlo al mensaje
+        if(content instanceof JsonObject){
+            msg = ((JsonObject) content).asString();
+        }else if (content instanceof String){
+            msg = (String) content;
+        }else{
+            System.out.println("[Reply] Formato de contenido no válido.");
+        }
         
+        ACLMessage out = in.createReply();
+        out.setContent(msg);
+        this.sendServer(out);
+        return out;
+    }
+    
+    public String getStringContent(ACLMessage msg, String field){
+        return Json.parse(msg.getContent()).asObject().get(field).toString();
+    }
+    
+    public JsonObject getJsonContent(ACLMessage msg, String field){
+        return Json.parse(msg.getContent()).asObject().get(field).asObject();
+    }
+    
+    public JsonObject getJsonContent(ACLMessage msg){
+        return Json.parse(msg.getContent()).asObject();
     }
 
     private void logoutAgent() {
-        JsonObject execute_json = new JsonObject();
-        execute_json.add("command","logout");
+        JsonObject logout_json = new JsonObject();
+        logout_json.add("command","logout");
         
-        this.sendMessage(receiver, execute_json);
+        this.sendMessage(receiver, logout_json);
     }
 
     private void showInfo(ACLMessage in) {
-        myControlPanel.feedData(in, width, height);
-        // width height devueltos por login
+        myControlPanel.feedData(in, width, height); // width height obtenidos en el login
         myControlPanel.fancyShow();
     }
 }
