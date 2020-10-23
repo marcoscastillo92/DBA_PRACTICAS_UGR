@@ -181,7 +181,7 @@ public class AgentP2 extends IntegratedAgent {
     }
 
     private void showInfo(ACLMessage in) {
-        //myControlPanel.feedData(in, width, height); // width height obtenidos en el login
+        myControlPanel.feedData(in, width, height, maxflight); // width height obtenidos en el login
         myControlPanel.fancyShow();
     }
 }
