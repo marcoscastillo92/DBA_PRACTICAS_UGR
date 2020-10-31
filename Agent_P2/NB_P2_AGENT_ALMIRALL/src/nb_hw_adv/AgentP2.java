@@ -5,6 +5,7 @@ import jade.core.AID;
 import jade.lang.acl.ACLMessage;
 import com.eclipsesource.json.*;
 import ControlPanel.TTYControlPanel;
+import static java.lang.Math.abs;
 import java.util.ArrayList;
 
 enum Status {
@@ -16,7 +17,7 @@ public class AgentP2 extends IntegratedAgent {
     TTYControlPanel myControlPanel;
     // Login variables
     String key;
-    int width, height, maxflight, energy;
+    int width, height, maxflight;
     JsonArray options;
     JsonArray sensors;
     String world = "BasePlayground";
@@ -28,6 +29,18 @@ public class AgentP2 extends IntegratedAgent {
     ArrayList<String> actions;
     boolean needsNewActionPlan;
     private boolean needsInfo;
+    // Control variables
+    int energy, xLidarNextPos, yLidarNextPos;
+    double compassSensor;
+    double distanceSensor;
+    double angularSensor;
+    ArrayList<ArrayList<Integer>> visualSensor;
+    ArrayList<Integer> gpsSensor;
+    double compassActual;
+    double angularActual;
+    double distanceActual;
+    ArrayList<ArrayList<Integer>> visualActual;
+    ArrayList<Integer> gpsActual;
 
     @Override
     public void setup() {
@@ -45,8 +58,6 @@ public class AgentP2 extends IntegratedAgent {
 
     @Override
     public void plainExecute() {
-        // Dialogar con receiver para entrar en el mundo
-        // moverse y leer los sensores
         switch (status) {
             case LOGIN:
                 current = this.makeLogin();
@@ -55,12 +66,12 @@ public class AgentP2 extends IntegratedAgent {
             case NEEDS_INFO:
                 current = this.readSensors(current);
                 this.needsInfo = false;
-                if (!this.hasActions() || this.needsNewActionPlan || !this.canExecuteNextAction()) {
+                if (!this.hasActions() || this.needsNewActionPlan || !this.canExecuteNextAction(null)) {
                     status = Status.PLANNING;
                 }
                 break;
             case HAS_ACTIONS:
-                if (this.hasActions() && this.canExecuteNextAction() && !this.needsNewActionPlan) {
+                if (this.hasActions() && this.canExecuteNextAction(null) && !this.needsNewActionPlan) {
                     this.executeAction(current, this.actions.get(0));
                     current = this.retrieveMessage();
                     if (current != null) {
@@ -159,6 +170,7 @@ public class AgentP2 extends IntegratedAgent {
             System.out.println("[SENSORS] Error: " + result);
         }
 
+        this.updateSensorsInfo();
         return reply;
     }
 
@@ -280,6 +292,21 @@ public class AgentP2 extends IntegratedAgent {
         
         return null;
     }
+    
+    /**
+     * Fn que actualiza la información local de los sensores y el agente
+     */
+    private void updateSensorsInfo(){
+        compassSensor = (double)this.interpretSensors("compass");
+        angularSensor = (double)this.interpretSensors("compass");
+        distanceSensor = (double)this.interpretSensors("compass");
+        visualSensor = (ArrayList<ArrayList<Integer>>)this.interpretSensors("compass");
+        gpsSensor = (ArrayList<Integer>)this.interpretSensors("compass");
+        compassActual = (double)this.interpretSensors("compass");
+        angularActual = (double)this.interpretSensors("compass");
+        distanceActual = (double)this.interpretSensors("compass");
+        gpsActual = (ArrayList<Integer>)this.interpretSensors("compass");
+    }
 
     private ArrayList<String> orientate() {
         ArrayList<String> plan = new ArrayList<>();
@@ -314,45 +341,139 @@ public class AgentP2 extends IntegratedAgent {
         return plan;
     }
 
+    /**
+     * Fn que contiene toda la lógica de planificación de movimientos teniendo en cuenta el entorno
+     */
     private void createStrategy() {
-        // orientarse, crear secuencia de acciones y añadirlas a
-        // this.actions
+        // orientarse, crear secuencia de acciones y añadirlas a this.actions
+        ArrayList<String> nextActions = this.orientate();
+        
+        if(nextActions.isEmpty() && this.hasEnoughtInfo()){
+            //Mientras pueda avanzar hacia adelante se añade al plan de acciones
+            while(this.canExecuteNextAction("moveF")){
+                nextActions.add("moveF");
+                this.updateActualInfo("moveF");
+            }
+        }
+    }
+    
+    /**
+     * Fn que determina si el agente está en el límite de la información del lidar de frente
+     * @return 
+     */
+    private boolean isLookingOutOfFrontier(){
+        int x = gpsActual.get(0);
+        int y = gpsActual.get(1);
+        boolean outOfFrontier = false;
+        String lookingAt = whereIsLooking();
+        if(((x >= (gpsSensor.get(0)+3) || x <= (gpsSensor.get(0)-3)) && !lookingAt.equals("N") && !lookingAt.equals("S")) || 
+           ((y >= (gpsSensor.get(1)+3) || y <= (gpsSensor.get(1)-3)) && !lookingAt.equals("W") && !lookingAt.equals("E"))){
+            this.needsInfo = true;
+            outOfFrontier = true;
+        }
+        return outOfFrontier;
+    }
+    
+    /**
+     * Fn que devuelve en String hacia donde está encarado el agente
+     * @return String
+     */
+    private String whereIsLooking(){
+        String lookingAt = "";
+        switch((int)compassActual){
+            case 0:
+                lookingAt = "N";
+                break;
+            case 45:
+                lookingAt = "NE";
+                break;
+            case 90:
+                lookingAt = "E";
+                break;
+            case 135:
+                lookingAt = "SE";
+                break;
+            case 180:
+                lookingAt = "S";
+                break;
+            case -45:
+                lookingAt = "NW";
+                break;
+            case -90:
+                lookingAt = "W";
+                break;
+            case -135:
+                lookingAt = "SW";
+                break;
+        }
+        return lookingAt;
     }
 
-    private boolean canExecuteNextAction() {
-        // mirar en la info que tenemos de los sensores y ver si se podría ejecutar la
-        // accion 0
-        // en caso de no poder ejecutar la acción devolver false y/o poner
-        // this.needsNewActionPlan a true
+    /**
+     * Fn que indica si se puede o no ejecutar la siguiente acción con las actuales condiciones e información
+     * @return boolean
+     */
+    private boolean canExecuteNextAction(String nextAction) {
         ArrayList<ArrayList<Integer>> visual = (ArrayList<ArrayList<Integer>>)this.interpretSensors("visual");
         ArrayList<Integer> gps = (ArrayList<Integer>)this.interpretSensors("gps");
-
-        String nextAction = actions.get(0);
+        if(nextAction == null){
+            nextAction = actions.get(0);
+        }
+        int z = gpsActual.get(2);
+        int xLidarPos = gpsSensor.get(0)-gpsActual.get(0) + 3;
+        int yLidarPos = gpsSensor.get(1)-gpsActual.get(1) + 3;
         boolean canExecute = false;
+        
         switch (nextAction) {
             case "moveF":
+                if(!this.isLookingOutOfFrontier()){
+                    this.getNextLidarPos();
+                    canExecute = z > visual.get(xLidarNextPos).get(yLidarNextPos);
+                }
                 break;
             case "rotateL":
-                break;
             case "rotateR":
+                canExecute = true;
                 break;
             case "touchD":
+                if((z - visual.get(xLidarPos).get(yLidarPos)) <= 5){
+                    canExecute = true;
+                }
                 break;
             case "moveUp":
+                if(z < this.maxflight ){
+                    canExecute = true;
+                }
                 break;
             case "moveDown":
+                if((z - visual.get(xLidarPos).get(yLidarPos)) >= 5)
                 break;
             case "readSensors":
                 canExecute = true;
                 break;
         }
 
-        return canExecute; // provisional
+        //Si no se puede ejecutar la siguiente acción indicamos que hay que crear un nuevo plan de acciones
+        if(!canExecute){
+            this.needsNewActionPlan = true;
+        }
+        
+        return canExecute; 
     }
 
+    /**
+     * Fn que determina si tiene suficiente información para planificar y si no setea el estado para leer sensores
+     * @return 
+     */
     private boolean hasEnoughtInfo() {
         // determinar si se tiene suficiente información para elaborar un plan o no
-        return true; // provisional
+        // Si está mirando hacia un borde del lidar no tiene info suficiente.
+        boolean response = this.isLookingOutOfFrontier();
+        this.needsInfo = response;
+        if(this.needsInfo){
+            status = Status.NEEDS_INFO;
+        }
+        return !response; 
     }
 
     private boolean hasEnoughEnergy() {
@@ -391,6 +512,163 @@ public class AgentP2 extends IntegratedAgent {
             case "readSensors":
                 this.energy -= this.sensores.length;
                 break;
+        }
+    }
+
+    /**
+     * Fn que actualiza cual sería la siguiente posición del lidar si avanzamos con la orientación actual
+     */
+    private void getNextLidarPos() {
+        int xLidarPos = gpsSensor.get(0)-gpsActual.get(0) + 3;
+        int yLidarPos = gpsSensor.get(1)-gpsActual.get(1) + 3;
+        String lookingAt = this.whereIsLooking();
+        
+        switch(lookingAt){
+            case "N":
+                xLidarNextPos = xLidarPos;
+                yLidarNextPos = yLidarPos-1;
+                break;
+            case "NE":
+                xLidarNextPos = xLidarPos+1;
+                yLidarNextPos = yLidarPos-1;
+                break;
+            case "E":
+                xLidarNextPos = xLidarPos+1;
+                yLidarNextPos = yLidarPos;
+                break;
+            case "SE":
+                xLidarNextPos = xLidarPos+1;
+                yLidarNextPos = yLidarPos+1;
+                break;
+            case "S":
+                xLidarNextPos = xLidarPos;
+                yLidarNextPos = yLidarPos+1;
+                break;
+            case "NW":
+                xLidarNextPos = xLidarPos-1;
+                yLidarNextPos = yLidarPos-1;
+                break;
+            case "W":
+                xLidarNextPos = xLidarPos-1;
+                yLidarNextPos = yLidarPos;
+                break;
+            case "SW":
+                xLidarNextPos = xLidarPos-1;
+                yLidarNextPos = yLidarPos+1;
+                break;
+        }
+    }
+
+    /**
+     * Actualiza la información de los sensores locales para poder planificar varios movimientos
+     * @param action 
+     */
+    private void updateActualInfo(String action) {
+        /*
+        Sensores locales que hay que actualizar
+            compassActual
+            angularActual 
+            distanceActual
+            gpsActual
+        */
+        switch(action){
+            case "moveF":
+                //Actualizar distancia al objetivo
+                this.setActualDistance();
+                //Actualizar gpsActual
+                this.setActualGPS();
+                break;
+            case "rotateL":
+                if(compassActual <= -135){
+                    compassActual = 180;
+                }else{
+                    compassActual -= 45;
+                }
+                break;
+            case "rotateR":
+                if(compassActual >= 185){
+                    compassActual = -135;
+                }else{
+                    compassActual += 45;
+                }
+                break;
+            case "touchD":
+                //Aterriza y está en z 0
+                int xLidarPos = gpsSensor.get(0)-gpsActual.get(0) + 3;
+                int yLidarPos = gpsSensor.get(1)-gpsActual.get(1) + 3;
+                int actualHeight = visualSensor.get(xLidarPos).get(yLidarPos);
+                gpsActual.set(2, actualHeight);
+                break;
+            case "moveUp":
+                actualHeight = gpsActual.get(2);
+                gpsActual.set(2, actualHeight+5);
+                break;
+            case "moveDown":
+                actualHeight = gpsActual.get(2);
+                gpsActual.set(2, actualHeight-5);
+                break;
+        }
+    }
+    
+    /**
+     * Actualiza la posición en el GPS según se haya movido y estuviese mirando, se llama cuando se hace un moveF solo
+     */
+    private void setActualGPS() {
+        String lookingAt = this.whereIsLooking();
+        switch(lookingAt){
+            case "N":
+                gpsActual.set(1, gpsActual.get(1)-1);
+                break;
+            case "NE":
+                gpsActual.set(0, gpsActual.get(0)+1);
+                gpsActual.set(1, gpsActual.get(1)-1);
+                break;
+            case "E":
+                gpsActual.set(0, gpsActual.get(0)+1);
+                break;
+            case "SE":
+                gpsActual.set(0, gpsActual.get(0)+1);
+                gpsActual.set(1, gpsActual.get(1)+1);
+                break;
+            case "S":
+                gpsActual.set(1, gpsActual.get(1)+1);
+                break;
+            case "NW":
+                gpsActual.set(0, gpsActual.get(0)-1);
+                gpsActual.set(1, gpsActual.get(1)-1);
+                break;
+            case "W":
+                gpsActual.set(0, gpsActual.get(0)-1);
+                break;
+            case "SW":
+                gpsActual.set(0, gpsActual.get(0)-1);
+                gpsActual.set(1, gpsActual.get(1)+1);
+                break;
+        }
+    }
+
+    /**
+     * Actualiza la distancia al objetivo según se haya movido y estuviese mirando, solo se llama con moveF
+     */
+    private void setActualDistance() {
+        if(angularActual == compassActual){
+            distanceActual--;
+        }else{
+            if(angularActual > compassActual){
+                //Si está a más de un giro, se aleja
+                if(abs(angularActual - compassActual) > 45){
+                    distanceActual++;
+                }else{
+                    distanceActual-= 0.5;
+                }
+            }else{
+                //Si está a más de un giro, se aleja
+                if(abs(compassActual - angularActual) > 45){
+                    distanceActual++;
+                }else{
+                    distanceActual-= 0.5;
+                }
+            }
         }
     }
 }
