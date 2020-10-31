@@ -241,47 +241,62 @@ public class AgentP2 extends IntegratedAgent {
         myControlPanel.fancyShow();
     }
 
-    private Object interpretateSensors(String sensor) {
+    private Object interpretSensors(String sensor) {
         switch(sensor) {
             case "alive":
-                return this.perceptions.get(0).asBoolean();
+                return this.perceptions.get(0).asObject().get("data").asArray().get(0).asInt() == 1;
             case "ontarget":
-                return this.perceptions.get(1).asBoolean();
+                return this.perceptions.get(1).asObject().get("data").asArray().get(0).asInt() == 1;
             case "compass":
-                return this.perceptions.get(2).asDouble();
+                return this.perceptions.get(2).asObject().get("data").asArray().get(0).asDouble();
             case "angular":
-                return this.perceptions.get(3).asDouble();
+                return this.perceptions.get(3).asObject().get("data").asArray().get(0).asDouble();
             case "distance":
-                return this.perceptions.get(4).asDouble();
+                return this.perceptions.get(4).asObject().get("data").asArray().get(0).asDouble();
             case "visual":
-                JsonArray cels = this.perceptions.get(5).asArray();
-                ArrayList<ArrayList<int>> elevationMap = new ArrayList<ArrayList<int>();
-                for(int i=0; i<cels.length; ++i) {
-                    
+                JsonArray visualData = this.perceptions.get(5).asObject().get("data").asArray();
+                ArrayList<ArrayList<Integer>> elevations = new ArrayList<>();
+        
+                for(int i=0; i<visualData.size(); ++i) {
+                    JsonArray array =  visualData.get(i).asArray();
+                    ArrayList<Integer> element = new ArrayList<>();
+                    for(int j=0; j<array.size(); ++j) {
+                        element.add(array.get(j).asInt());
+                    }
+                    elevations.set(i, element);
                 }
-                return 
+
+                return elevations;
             case "gps":
-                
+                JsonArray gpsData = this.perceptions.get(5).asObject().get("data").asArray().get(0).asArray();
+                ArrayList<Integer> coordenadas = new ArrayList<>();
+
+                for(int i=0; i<gpsData.size(); ++i) {
+                    coordenadas.add(gpsData.get(i).asInt());
+                }
+
+                return coordenadas;
         }
         
+        return null;
     }
 
     private ArrayList<String> orientate() {
-        ArrayList<String> plan = new ArrayList<String>();
+        ArrayList<String> plan = new ArrayList<>();
 
-        double compass = interpretateSensors("compass");
-        double angular = interpretateSensors("angular");
+        double compass = (double)this.interpretSensors("compass");
+        double angular = (double)this.interpretSensors("angular");
 
         if (compass != angular) {
             
-            double 
+            double ax = 0.0;
 
             while (compass != angular) {
                 if(compass > angular){
                     compass -= 45.0;
                     double resultado = compass / 45;
                     
-                    if(resultado > X){
+                    if(resultado > ax){
 
                     }else{
                         plan.add("rotateL");
@@ -309,8 +324,8 @@ public class AgentP2 extends IntegratedAgent {
         // accion 0
         // en caso de no poder ejecutar la acción devolver false y/o poner
         // this.needsNewActionPlan a true
-        JsonArray visual = perceptions.get(5).asArray();
-        JsonArray gps = perceptions.get(6).asArray();
+        ArrayList<ArrayList<Integer>> visual = (ArrayList<ArrayList<Integer>>)this.interpretSensors("visual");
+        ArrayList<Integer> gps = (ArrayList<Integer>)this.interpretSensors("gps");
 
         String nextAction = actions.get(0);
         boolean canExecute = false;
@@ -326,7 +341,6 @@ public class AgentP2 extends IntegratedAgent {
             case "moveUp":
                 break;
             case "moveDown":
-                if()
                 break;
             case "readSensors":
                 canExecute = true;
@@ -342,17 +356,17 @@ public class AgentP2 extends IntegratedAgent {
     }
 
     private boolean hasEnoughEnergy() {
-        JsonArray visual = interpretateSensors("visual");
-        JsonArray gps = interpretateSensors("gps");
+        ArrayList<ArrayList<Integer>> visual = (ArrayList<ArrayList<Integer>>)this.interpretSensors("visual");
+        ArrayList<Integer> gps = (ArrayList<Integer>)this.interpretSensors("gps");
         int height, rest, energyNeeded;
 
         energy -= 2; // Lectura de sensores
         
-        height = gps[2] - visual[3][3]; // Altura del dron - Altura del terreno debajo de él
-        rest = height % 5 // Los metros que haría touch down
+        height = gps.get(2) - visual.get(3).get(3); // Altura del dron - Altura del terreno debajo de él
+        rest = height % 5; // Los metros que haría touch down
         energyNeeded = ((height-rest)*5) + rest; // Energía necesitada para aterrizar, 5 por cada "move down" y 1 por cada metro de altura que queda (rest) para "touch down"
         
-        if (energyNeeded = energy) {
+        if (energyNeeded == energy) {
             
         }
 
