@@ -241,29 +241,42 @@ public class AgentP2 extends IntegratedAgent {
         myControlPanel.fancyShow();
     }
 
-    private Object interpretateSensors(String sensor) {
+    private Object interpretSensors(String sensor) {
         switch(sensor) {
             case "alive":
-                return this.perceptions.get(0).asBoolean();
+                return this.perceptions.get(0).asObject().get("data").asArray().get(0).asInt() == 1;
             case "ontarget":
-                return this.perceptions.get(1).asBoolean();
+                return this.perceptions.get(1).asObject().get("data").asArray().get(0).asInt() == 1;
             case "compass":
-                return this.perceptions.get(2).asDouble();
+                return this.perceptions.get(2).asObject().get("data").asArray().get(0).asDouble();
             case "angular":
-                return this.perceptions.get(3).asDouble();
+                return this.perceptions.get(3).asObject().get("data").asArray().get(0).asDouble();
             case "distance":
-                return this.perceptions.get(4).asDouble();
+                return this.perceptions.get(4).asObject().get("data").asArray().get(0).asDouble();
             case "visual":
-                JsonArray cels = this.perceptions.get(5).asArray();
-                ArrayList<ArrayList<int>> elevationMap = new ArrayList<ArrayList<int>();
-                for(int i=0; i<cels.length; ++i) {
-                    
+                JsonArray visualData = this.perceptions.get(5).asObject().get("data").asArray();
+                int[][] elevations = new int[7][7];
+        
+                for(int i=0; i<visualData.size(); ++i) {
+                    JsonArray array =  visualData.get(i).asArray();
+                    for(int j=0; j<array.size(); ++j) {
+                        elevations[i][j] = array.get(j).asInt();
+                    }
                 }
-                return 
+
+                return elevations;
             case "gps":
-                
+                JsonArray gpsData = this.perceptions.get(5).asObject().get("data").asArray().get(0).asArray();
+                int[] coordenadas = new int[3];
+
+                for(int i=0; i<gpsData.size(); ++i) {
+                    coordenadas[i] = gpsData.get(i).asInt();
+                }
+
+                return coordenadas;
         }
         
+        return null;
     }
 
     private ArrayList<String> orientate() {
