@@ -16,7 +16,7 @@ public class AgentP2 extends IntegratedAgent {
     TTYControlPanel myControlPanel;
     // Login variables
     String key;
-    int width, height, maxflight, energy;
+    int width, height, maxflight;
     JsonArray options;
     JsonArray sensors;
     String world = "BasePlayground";
@@ -28,6 +28,18 @@ public class AgentP2 extends IntegratedAgent {
     ArrayList<String> actions;
     boolean needsNewActionPlan;
     private boolean needsInfo;
+    // Control variables
+    int energy, xLidarNextPos, yLidarNextPos;
+    double compassSensor;
+    double distanceSensor;
+    double angularSensor;
+    ArrayList<ArrayList<Integer>> visualSensor;
+    ArrayList<Integer> gpsSensor;
+    double compassActual;
+    double angularActual;
+    double distanceActual;
+    ArrayList<ArrayList<Integer>> visualActual;
+    ArrayList<Integer> gpsActual;
 
     @Override
     public void setup() {
@@ -45,8 +57,6 @@ public class AgentP2 extends IntegratedAgent {
 
     @Override
     public void plainExecute() {
-        // Dialogar con receiver para entrar en el mundo
-        // moverse y leer los sensores
         switch (status) {
             case LOGIN:
                 current = this.makeLogin();
@@ -159,6 +169,7 @@ public class AgentP2 extends IntegratedAgent {
             System.out.println("[SENSORS] Error: " + result);
         }
 
+        this.updateSensorsInfo();
         return reply;
     }
 
@@ -280,6 +291,22 @@ public class AgentP2 extends IntegratedAgent {
         
         return null;
     }
+    
+    /**
+     * Fn que actualiza la información local de los sensores y el agente
+     */
+    private void updateSensorsInfo(){
+        compassSensor = (double)this.interpretSensors("compass");
+        angularSensor = (double)this.interpretSensors("compass");
+        distanceSensor = (double)this.interpretSensors("compass");
+        visualSensor = (ArrayList<ArrayList<Integer>>)this.interpretSensors("compass");
+        gpsSensor = (ArrayList<Integer>)this.interpretSensors("compass");
+        compassActual = (double)this.interpretSensors("compass");
+        angularActual = (double)this.interpretSensors("compass");
+        distanceActual = (double)this.interpretSensors("compass");
+        visualActual = (ArrayList<ArrayList<Integer>>)this.interpretSensors("compass");
+        gpsActual = (ArrayList<Integer>)this.interpretSensors("compass");
+    }
 
     private ArrayList<String> orientate() {
         ArrayList<String> plan = new ArrayList<>();
@@ -318,36 +345,103 @@ public class AgentP2 extends IntegratedAgent {
         // orientarse, crear secuencia de acciones y añadirlas a
         // this.actions
     }
+    
+    private boolean isLookingOutOfFrontier(){
+        int x = gpsActual.get(0);
+        int y = gpsActual.get(1);
+        boolean outOfFrontier = false;
+        String lookingAt = whereIsLooking();
+        if(((x >= (gpsSensor.get(0)+3) || x <= (gpsSensor.get(0)-3)) && !lookingAt.equals("N") && !lookingAt.equals("S")) || 
+           ((y >= (gpsSensor.get(1)+3) || y <= (gpsSensor.get(1)-3)) && !lookingAt.equals("W") && !lookingAt.equals("E"))){
+            this.needsInfo = true;
+            outOfFrontier = true;
+        }
+        return outOfFrontier;
+    }
+    
+    /**
+     * Fn que devuelve en String hacia donde está encarado el agente
+     * @return String
+     */
+    private String whereIsLooking(){
+        String lookingAt = "";
+        switch((int)compassActual){
+            case 0:
+                lookingAt = "N";
+                break;
+            case 45:
+                lookingAt = "NE";
+                break;
+            case 90:
+                lookingAt = "E";
+                break;
+            case 135:
+                lookingAt = "SE";
+                break;
+            case 180:
+                lookingAt = "S";
+                break;
+            case -45:
+                lookingAt = "NW";
+                break;
+            case -90:
+                lookingAt = "W";
+                break;
+            case -135:
+                lookingAt = "SW";
+                break;
+        }
+        return lookingAt;
+    }
 
+    /**
+     * Fn que indica si se puede o no ejecutar la siguiente acción con las actuales condiciones e información
+     * @return boolean
+     */
     private boolean canExecuteNextAction() {
-        // mirar en la info que tenemos de los sensores y ver si se podría ejecutar la
-        // accion 0
-        // en caso de no poder ejecutar la acción devolver false y/o poner
-        // this.needsNewActionPlan a true
         ArrayList<ArrayList<Integer>> visual = (ArrayList<ArrayList<Integer>>)this.interpretSensors("visual");
         ArrayList<Integer> gps = (ArrayList<Integer>)this.interpretSensors("gps");
-
         String nextAction = actions.get(0);
+        int z = gpsActual.get(2);
+        int xLidarPos = gpsSensor.get(0)-gpsActual.get(0) + 3;
+        int yLidarPos = gpsSensor.get(1)-gpsActual.get(1) + 3;
         boolean canExecute = false;
+        
         switch (nextAction) {
             case "moveF":
+                if(!this.isLookingOutOfFrontier()){
+                    this.getNextLidarPos();
+                    canExecute = z > visual.get(xLidarNextPos).get(yLidarNextPos);
+                }
                 break;
             case "rotateL":
-                break;
             case "rotateR":
+                canExecute = true;
                 break;
             case "touchD":
+                if((z - visual.get(xLidarPos).get(yLidarPos)) <= 5){
+                    canExecute = true;
+                }
                 break;
             case "moveUp":
+                if(z < this.maxflight ){
+                    canExecute = true;
+                }
                 break;
             case "moveDown":
+                if((z - visual.get(xLidarPos).get(yLidarPos)) >= 5)
                 break;
             case "readSensors":
                 canExecute = true;
                 break;
         }
 
-        return canExecute; // provisional
+        //Si no se puede ejecutar la siguiente acción indicamos que hay que crear un nuevo plan de acciones
+        if(!canExecute){
+            this.needsNewActionPlan = true;
+        }
+        
+        return canExecute; 
     }
 
     private boolean hasEnoughtInfo() {
@@ -390,6 +484,50 @@ public class AgentP2 extends IntegratedAgent {
                 break;
             case "readSensors":
                 this.energy -= this.sensores.length;
+                break;
+        }
+    }
+
+    /**
+     * Fn que actualiza cual sería la siguiente posición del lidar si avanzamos con la orientación actual
+     */
+    private void getNextLidarPos() {
+        int xLidarPos = gpsSensor.get(0)-gpsActual.get(0) + 3;
+        int yLidarPos = gpsSensor.get(1)-gpsActual.get(1) + 3;
+        String lookingAt = this.whereIsLooking();
+        
+        switch(lookingAt){
+            case "N":
+                xLidarNextPos = xLidarPos;
+                yLidarNextPos = yLidarPos-1;
+                break;
+            case "NE":
+                xLidarNextPos = xLidarPos+1;
+                yLidarNextPos = yLidarPos-1;
+                break;
+            case "E":
+                xLidarNextPos = xLidarPos+1;
+                yLidarNextPos = yLidarPos;
+                break;
+            case "SE":
+                xLidarNextPos = xLidarPos+1;
+                yLidarNextPos = yLidarPos+1;
+                break;
+            case "S":
+                xLidarNextPos = xLidarPos;
+                yLidarNextPos = yLidarPos+1;
+                break;
+            case "NW":
+                xLidarNextPos = xLidarPos-1;
+                yLidarNextPos = yLidarPos-1;
+                break;
+            case "W":
+                xLidarNextPos = xLidarPos-1;
+                yLidarNextPos = yLidarPos;
+                break;
+            case "SW":
+                xLidarNextPos = xLidarPos-1;
+                yLidarNextPos = yLidarPos+1;
                 break;
         }
     }
