@@ -348,6 +348,17 @@ public class AgentP2 extends IntegratedAgent {
         // orientarse, crear secuencia de acciones y añadirlas a this.actions
         ArrayList<String> nextActions = this.orientate();
         
+        if (!hasEnoughEnergy()) {
+            while (this.canExecuteNextAction("moveD")) {
+                nextActions.add("moveD");
+                this.updateActualInfo("moveD");
+            }
+            if (this.canExecuteNextAction("touchD")) {
+                nextActions.add("touchD");
+                this.updateActualInfo("moveD");
+            }
+        }
+
         if(nextActions.isEmpty() && this.hasEnoughtInfo()){
             //Mientras pueda avanzar hacia adelante se añade al plan de acciones
             while(this.canExecuteNextAction("moveF")){
@@ -479,19 +490,16 @@ public class AgentP2 extends IntegratedAgent {
     private boolean hasEnoughEnergy() {
         ArrayList<ArrayList<Integer>> visual = (ArrayList<ArrayList<Integer>>)this.interpretSensors("visual");
         ArrayList<Integer> gps = (ArrayList<Integer>)this.interpretSensors("gps");
-        int height, rest, energyNeeded;
-
-        energy -= 2; // Lectura de sensores
+        int height;
+        boolean enough = true;
         
         height = gps.get(2) - visual.get(3).get(3); // Altura del dron - Altura del terreno debajo de él
-        rest = height % 5; // Los metros que haría touch down
-        energyNeeded = ((height-rest)*5) + rest; // Energía necesitada para aterrizar, 5 por cada "move down" y 1 por cada metro de altura que queda (rest) para "touch down"
         
-        if (energyNeeded == energy) {
-            
+        if (height + 10 >= energy) {
+            enough = false;
         }
 
-        return true; // provisional
+        return enough;
     }
 
     private void setEnergy(String action) {
