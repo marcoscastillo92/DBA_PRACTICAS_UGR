@@ -381,6 +381,12 @@ public class AgentP2 extends IntegratedAgent {
                     if(heightDiff <= 0 && z == maxflight){
                         this.needsNewActionPlan = true;
                     }
+                }else{
+                    nextActions.add("rotateL");
+                    this.updateActualInfo("rotateL");
+                    if(this.canExecuteNextAction("moveF")){
+                        nextActions.add("moveF");
+                    }
                 }
             }else if(!this.isLanded()){
                 nextActions = this.landAgent();
@@ -411,7 +417,7 @@ public class AgentP2 extends IntegratedAgent {
     }
 
     private boolean objectiveReached() {
-        return distanceActual == 0;
+        return distanceActual > -1 && distanceActual < 1;
     }
 
     private boolean isLanded() {
