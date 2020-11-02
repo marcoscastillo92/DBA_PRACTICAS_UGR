@@ -7,8 +7,6 @@ import com.eclipsesource.json.*;
 import ControlPanel.TTYControlPanel;
 import static java.lang.Math.abs;
 import java.util.ArrayList;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 enum Status {
     LOGIN, NEEDS_INFO, HAS_ACTIONS, PLANNING, LOGOUT
@@ -43,12 +41,14 @@ public class AgentP2 extends IntegratedAgent {
     double distanceActual;
     ArrayList<Integer> gpsActual;
     ArrayList<String> nextActions;
+    JsonArray perceptionsAuxiliar;
 
     @Override
     public void setup() {
         super.setup();
         this.doCheckinPlatform();
         this.doCheckinLARVA();
+        this.perceptions = new JsonArray();
         this.actions = new ArrayList<>();
         this.visualSensor = new ArrayList<ArrayList<Integer>>();
         this.gpsSensor = new ArrayList<>();
@@ -60,6 +60,7 @@ public class AgentP2 extends IntegratedAgent {
         this.needsNewActionPlan = false;
         this.needsInfo = true;
         this.energy = 1000;
+        this.perceptionsAuxiliar = new JsonArray();
         this._exitRequested = false;
     }
 
@@ -79,12 +80,8 @@ public class AgentP2 extends IntegratedAgent {
                 this.showInfo(this.current);
                 break;
             case HAS_ACTIONS:
-                if(this.needsNewActionPlan){
-                    this.actions.clear();
-                    this.needsNewActionPlan = false;
-                }
-                if (this.hasActions() && this.canExecuteNextAction(null)) {
-                    this.executeAction(current, this.actions.get(0));
+                if (this.hasActions()) {
+                    this.executeAction(this.current, this.actions.get(0));
                     this.setEnergy(this.actions.get(0));
                     this.removeFirstAction();
                 } else {
@@ -95,12 +92,9 @@ public class AgentP2 extends IntegratedAgent {
             case PLANNING:
                 // Hay que ver cuando es necesario modificar needsInfo para evitar que no
                 // planifique sin información suficiente
-                if (this.needsInfo || !this.hasEnoughtInfo()) {
-                    this.status = Status.NEEDS_INFO;
-                } else {
-                    this.createStrategy();
+                this.createStrategy();
+                if(!this.needsInfo){
                     this.status = Status.HAS_ACTIONS;
-                    this.needsNewActionPlan = this.actions.isEmpty();
                 }
                 break;
             case LOGOUT:
@@ -170,15 +164,7 @@ public class AgentP2 extends IntegratedAgent {
         ACLMessage reply = this.blockingReceive();
         String result = getStringContent(reply, "result").replaceAll("\\\"", "");
         if (result.equals("ok")) {
-            JsonObject reply_obj = new JsonObject(Json.parse(reply.getContent()).asObject());
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException ex) {
-                Logger.getLogger(AgentP2.class.getName()).log(Level.SEVERE, null, ex);
-            }
-            System.out.println("ESTO ES DETAILS: -----------> "+new JsonObject(reply_obj.get("details").asObject()));
-            JsonObject details = new JsonObject(reply_obj.get("details").asObject());
-            this.perceptions = new JsonArray(details.get("perceptions").asArray());
+            this.perceptions = new JsonArray(Json.parse(reply.getContent()).asObject().get("details").asObject().get("perceptions").asArray());
             this.setEnergy("readSensors");
         } else {
             System.out.println("[SENSORS] Error: " + reply);
@@ -247,15 +233,12 @@ public class AgentP2 extends IntegratedAgent {
     }
 
     private void removeFirstAction() {
-        if(!this.actions.isEmpty()){
             if(this.actions.size() > 1){
                 this.actions.remove(0);
             }
             else{
-        System.out.println("QUITA ACCIÓN DE LA LISTA::::::::::::::::: "+this.actions.get(0));
                 this.actions.clear();
-            }            
-        }
+            }    
     }
 
     private void addAction(String action) {
@@ -384,7 +367,7 @@ public class AgentP2 extends IntegratedAgent {
                     nextActions.add("moveF");
                     this.updateActualInfo("moveF");
                 }
-                if(!this.canExecuteNextAction("moveF")){
+                if(!this.canExecuteNextAction("moveF") && nextActions.isEmpty()){
                     int z = this.gpsActual.get(2);
                     int visualHeight = this.visualSensor.get(this.xLidarNextPos).get(this.yLidarNextPos);
                     int heightDiff = z - visualHeight;
@@ -395,13 +378,12 @@ public class AgentP2 extends IntegratedAgent {
                         heightDiff = z - visualHeight;
                     }
                     if(heightDiff <= 0 && z == this.maxflight){
-                        this.needsNewActionPlan = true;
-                    }
-                }else{
-                    nextActions.add("rotateL");
-                    this.updateActualInfo("rotateL");
-                    if(this.canExecuteNextAction("moveF")){
-                        nextActions.add("moveF");
+                        nextActions.clear();
+                        nextActions.add("rotateL");
+                        this.updateActualInfo("rotateL");
+                        if(this.canExecuteNextAction("moveF")){
+                            nextActions.add("moveF");
+                        }
                     }
                 }
             }else if(!this.isLanded()){
@@ -458,7 +440,6 @@ public class AgentP2 extends IntegratedAgent {
         String lookingAt = whereIsLooking();
         if(((x >= (this.gpsSensor.get(0)+3) || x <= (this.gpsSensor.get(0)-3)) && !lookingAt.equals("N") && !lookingAt.equals("S")) || 
            ((y >= (this.gpsSensor.get(1)+3) || y <= (this.gpsSensor.get(1)-3)) && !lookingAt.equals("W") && !lookingAt.equals("E"))){
-            this.needsInfo = true;
             outOfFrontier = true;
         }
         return outOfFrontier;
@@ -504,13 +485,13 @@ public class AgentP2 extends IntegratedAgent {
      * @return boolean
      */
     private boolean canExecuteNextAction(String nextAction) {
-        if(nextAction == null){
+        boolean canExecute = false;
+        if(nextAction == null && !this.actions.isEmpty()){
             nextAction = this.actions.get(0);
         }
         int z = this.gpsActual.get(2);
         int xLidarPos = this.gpsSensor.get(0)-this.gpsActual.get(0) + 3;
         int yLidarPos = this.gpsSensor.get(1)-this.gpsActual.get(1) + 3;
-        boolean canExecute = false;
         
         switch (nextAction) {
             case "moveF":
