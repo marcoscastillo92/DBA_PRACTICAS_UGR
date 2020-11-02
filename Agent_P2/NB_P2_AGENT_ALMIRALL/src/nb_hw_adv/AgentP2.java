@@ -551,11 +551,11 @@ public class AgentP2 extends IntegratedAgent {
         
         height = gpsActual.get(2) - visualSensor.get(xLidarPos).get(yLidarPos); // Altura del dron - Altura del terreno debajo de él
         
-        if (energyNeeded == energy) {
-            
+        if (height + 10 >= energy) {
+            enough = false;
         }
 
-        return true; // provisional
+        return enough;
     }
 
     private void setEnergy(String action) {
