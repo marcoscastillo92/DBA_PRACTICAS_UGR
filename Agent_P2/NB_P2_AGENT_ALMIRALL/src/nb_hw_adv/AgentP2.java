@@ -71,7 +71,11 @@ public class AgentP2 extends IntegratedAgent {
                 }
                 break;
             case HAS_ACTIONS:
-                if (this.hasActions() && this.canExecuteNextAction(null) && !this.needsNewActionPlan) {
+                if(this.needsNewActionPlan){
+                    this.actions.clear();
+                    this.needsNewActionPlan = false;
+                }
+                if (this.hasActions() && this.canExecuteNextAction(null)) {
                     this.executeAction(current, this.actions.get(0));
                     current = this.retrieveMessage();
                     if (current != null) {
@@ -90,6 +94,7 @@ public class AgentP2 extends IntegratedAgent {
                 } else {
                     this.createStrategy();
                     status = Status.HAS_ACTIONS;
+                    this.needsNewActionPlan = this.actions.size() > 0;
                 }
                 break;
             case LOGOUT:
@@ -298,44 +303,50 @@ public class AgentP2 extends IntegratedAgent {
      */
     private void updateSensorsInfo(){
         compassSensor = (double)this.interpretSensors("compass");
-        angularSensor = (double)this.interpretSensors("compass");
-        distanceSensor = (double)this.interpretSensors("compass");
-        visualSensor = (ArrayList<ArrayList<Integer>>)this.interpretSensors("compass");
-        gpsSensor = (ArrayList<Integer>)this.interpretSensors("compass");
+        angularSensor = (double)this.interpretSensors("angular");
+        distanceSensor = (double)this.interpretSensors("distance");
+        visualSensor = (ArrayList<ArrayList<Integer>>)this.interpretSensors("visual");
+        gpsSensor = (ArrayList<Integer>)this.interpretSensors("gps");
         compassActual = (double)this.interpretSensors("compass");
-        angularActual = (double)this.interpretSensors("compass");
-        distanceActual = (double)this.interpretSensors("compass");
-        gpsActual = (ArrayList<Integer>)this.interpretSensors("compass");
+        angularActual = (double)this.interpretSensors("angular");
+        distanceActual = (double)this.interpretSensors("distance");
+        gpsActual = (ArrayList<Integer>)this.interpretSensors("gps");
     }
 
-    private ArrayList<String> orientate() {
-        ArrayList<String> plan = new ArrayList<>();
+    private ArrayList<String> orientate(double angular) {
+        ArrayList<String> plan = new ArrayList<String>();
+        int d = 0;
 
-        double compass = (double)this.interpretSensors("compass");
-        double angular = (double)this.interpretSensors("angular");
+        double compass = compassActual;
 
-        if (compass != angular) {
-            
-            double ax = 0.0;
+        while (compass != angular) {
+            compass += 45.0;
+            d++;
 
-            while (compass != angular) {
-                if(compass > angular){
-                    compass -= 45.0;
-                    double resultado = compass / 45;
-                    
-                    if(resultado > ax){
-
-                    }else{
-                        plan.add("rotateL");
-                    }
-                    //añadir accion rotar L
-                }else{
-                    compass += 45.0;
-                    plan.add("rotateR");
-                    //
-                }
+            if (compass > 180) { 
+                compass = -135;
             }
-            
+        }
+        
+        if (d <= 4) {
+            // El plan es girar a la derecha d veces
+            while (d != 0) {
+                plan.add("rotateR");
+                d--; 
+            }  
+        }
+        else {
+            // El plan es girar a la izquierda i veces
+            int i = 8 - d;
+
+            while (i != 0) {
+                plan.add("rotateL");
+                i--;
+            }
+        }
+
+        for(String action: plan){
+            this.updateActualInfo(action);
         }
 
         return plan;
@@ -346,20 +357,77 @@ public class AgentP2 extends IntegratedAgent {
      */
     private void createStrategy() {
         // orientarse, crear secuencia de acciones y añadirlas a this.actions
-        ArrayList<String> nextActions = this.orientate();
+        ArrayList<String> nextActions = this.orientate(this.angularSensor);
         
-        if(nextActions.isEmpty() && this.hasEnoughtInfo()){
-            //Mientras pueda avanzar hacia adelante se añade al plan de acciones
-            while(this.canExecuteNextAction("moveF")){
-                nextActions.add("moveF");
-                this.updateActualInfo("moveF");
+        if (!hasEnoughEnergy()) {
+            nextActions = this.landAgent();
+        }else if(nextActions.isEmpty() && this.hasEnoughtInfo()){
+            if(!this.objectiveReached()){
+                //Mientras pueda avanzar hacia adelante se añade al plan de acciones
+                while(this.canExecuteNextAction("moveF")){
+                    nextActions.add("moveF");
+                    this.updateActualInfo("moveF");
+                }
+                if(!this.canExecuteNextAction("moveF")){
+                    int z = gpsActual.get(2);
+                    int visualHeight = visualSensor.get(xLidarNextPos).get(yLidarNextPos);
+                    int heightDiff = z - visualHeight;
+                    while(heightDiff <= 0 && (z + (-heightDiff)) < maxflight){
+                        nextActions.add("moveU");
+                        this.updateActualInfo("moveU");
+                        z = gpsActual.get(2);
+                        heightDiff = z - visualHeight;
+                    }
+                    if(heightDiff <= 0 && z == maxflight){
+                        this.needsNewActionPlan = true;
+                    }
+                }
+            }else if(!this.isLanded()){
+                nextActions = this.landAgent();
+            }else{
+                status = Status.LOGOUT;
             }
+        }
+
+        for(String action: nextActions){
+            this.addAction(action);
+            System.out.println("Acción añadida: " + action);
         }
     }
     
+    private ArrayList<String> landAgent() {
+        ArrayList<String> nextActions = new ArrayList<>();
+        while (!this.isLanded()) {
+            if (this.canExecuteNextAction("touchD")) {
+                nextActions.add("touchD");
+                this.updateActualInfo("touchD");
+                break;
+            }else{
+                nextActions.add("moveD");
+                this.updateActualInfo("moveD");
+            }
+        }
+        return nextActions;
+    }
+
+    private boolean objectiveReached() {
+        return distanceActual == 0;
+    }
+
+    private boolean isLanded() {
+        int xLidarPos = gpsSensor.get(0)-gpsActual.get(0) + 3;
+        int yLidarPos = gpsSensor.get(1)-gpsActual.get(1) + 3;
+        
+        int height = gpsActual.get(2) - this.visualSensor.get(xLidarPos).get(yLidarPos); 
+
+        return height == 0;
+    }
+
     /**
-     * Fn que determina si el agente está en el límite de la información del lidar de frente
-     * @return 
+     * Fn que determina si el agente está en el límite de la información del lidar
+     * de frente
+     * 
+     * @return
      */
     private boolean isLookingOutOfFrontier(){
         int x = gpsActual.get(0);
@@ -414,8 +482,6 @@ public class AgentP2 extends IntegratedAgent {
      * @return boolean
      */
     private boolean canExecuteNextAction(String nextAction) {
-        ArrayList<ArrayList<Integer>> visual = (ArrayList<ArrayList<Integer>>)this.interpretSensors("visual");
-        ArrayList<Integer> gps = (ArrayList<Integer>)this.interpretSensors("gps");
         if(nextAction == null){
             nextAction = actions.get(0);
         }
@@ -428,7 +494,7 @@ public class AgentP2 extends IntegratedAgent {
             case "moveF":
                 if(!this.isLookingOutOfFrontier()){
                     this.getNextLidarPos();
-                    canExecute = z > visual.get(xLidarNextPos).get(yLidarNextPos);
+                    canExecute = z > visualSensor.get(xLidarNextPos).get(yLidarNextPos);
                 }
                 break;
             case "rotateL":
@@ -436,7 +502,7 @@ public class AgentP2 extends IntegratedAgent {
                 canExecute = true;
                 break;
             case "touchD":
-                if((z - visual.get(xLidarPos).get(yLidarPos)) <= 5){
+                if((z - visualSensor.get(xLidarPos).get(yLidarPos)) <= 5){
                     canExecute = true;
                 }
                 break;
@@ -446,7 +512,7 @@ public class AgentP2 extends IntegratedAgent {
                 }
                 break;
             case "moveDown":
-                if((z - visual.get(xLidarPos).get(yLidarPos)) >= 5)
+                if((z - visualSensor.get(xLidarPos).get(yLidarPos)) >= 5)
                 break;
             case "readSensors":
                 canExecute = true;
@@ -477,15 +543,13 @@ public class AgentP2 extends IntegratedAgent {
     }
 
     private boolean hasEnoughEnergy() {
-        ArrayList<ArrayList<Integer>> visual = (ArrayList<ArrayList<Integer>>)this.interpretSensors("visual");
-        ArrayList<Integer> gps = (ArrayList<Integer>)this.interpretSensors("gps");
-        int height, rest, energyNeeded;
+        int height;
+        boolean enough = true;
 
-        energy -= 2; // Lectura de sensores
+        int xLidarPos = gpsSensor.get(0)-gpsActual.get(0) + 3;
+        int yLidarPos = gpsSensor.get(1)-gpsActual.get(1) + 3;
         
-        height = gps.get(2) - visual.get(3).get(3); // Altura del dron - Altura del terreno debajo de él
-        rest = height % 5; // Los metros que haría touch down
-        energyNeeded = ((height-rest)*5) + rest; // Energía necesitada para aterrizar, 5 por cada "move down" y 1 por cada metro de altura que queda (rest) para "touch down"
+        height = gpsActual.get(2) - visualSensor.get(xLidarPos).get(yLidarPos); // Altura del dron - Altura del terreno debajo de él
         
         if (energyNeeded == energy) {
             
@@ -608,8 +672,28 @@ public class AgentP2 extends IntegratedAgent {
                 gpsActual.set(2, actualHeight-5);
                 break;
         }
+
+        this.showTrackingInfo();
     }
     
+    private void showTrackingInfo(){
+        String gps_msg = "GPS Actual: [" + gpsActual.get(0) + ", " + gpsActual.get(1) + ", " + gpsActual.get(2) + "] \n" + "GPS Sensores: [" + gpsSensor.get(0) + ", " + gpsSensor.get(1) + ", " + gpsSensor.get(2) + "] \n";
+        String visual_msg = "Visual Sensor: \n";
+        for(ArrayList<Integer> row: visualSensor){
+            visual_msg += "[ ";
+            for(int value: row){
+                visual_msg += value + ", ";
+            }
+            visual_msg += "]\n ";
+        }
+        visual_msg += "\n";
+        String compass_msg = "Compass Actual: [" + compassActual + "] \n" + "Compass Sensores: [" + compassSensor + "] \n";
+        String angular_msg = "Angular Actual: [" + angularActual + "] \n" + "Angular Sensores: [" + angularSensor + "] \n";
+        String distance_msg = "Distance Actual: [" + distanceActual + "] \n" + "Distance Sensores: [" + distanceSensor + "] \n";
+        
+        System.out.println(gps_msg + visual_msg + compass_msg + angular_msg + distance_msg);
+    }
+
     /**
      * Actualiza la posición en el GPS según se haya movido y estuviese mirando, se llama cuando se hace un moveF solo
      */
