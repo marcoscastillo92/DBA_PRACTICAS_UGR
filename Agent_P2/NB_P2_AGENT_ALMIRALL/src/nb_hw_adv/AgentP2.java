@@ -20,7 +20,7 @@ public class AgentP2 extends IntegratedAgent {
     int width, height, maxflight;
     JsonArray options;
     JsonArray sensors;
-    String world = "Playground2";
+    String world = "World1";
     String[] sensores = { "alive", "ontarget", "compass", "angular", "distance", "visual", "gps" };
     // General use variables
     JsonArray perceptions;
@@ -76,7 +76,11 @@ public class AgentP2 extends IntegratedAgent {
             case NEEDS_INFO:
                 this.current = this.readSensors(this.current);
                 this.needsInfo = false;
-                this.status = Status.PLANNING;
+                if(this.objectiveReached()){
+                    this.status = Status.LOGOUT;
+                }else{
+                    this.status = Status.PLANNING;
+                }
                 this.showInfo(this.current);
                 break;
             case HAS_ACTIONS:
@@ -95,9 +99,9 @@ public class AgentP2 extends IntegratedAgent {
                 this.createStrategy();
                 if(!this.actions.isEmpty() && !this.onTarget){
                     this.status = Status.HAS_ACTIONS;
-                }else if (this.status == Status.PLANNING && !(this.onTarget || this.distanceSensor <= 1)){
+                }else if (this.status == Status.PLANNING && !(this.onTarget || this.distanceSensor < 1)){
                     this.status = Status.NEEDS_INFO;
-                }else if (this.onTarget || this.distanceSensor <= 1){
+                }else if (this.onTarget || this.distanceSensor < 1){
                     this.status = Status.LOGOUT;
                 }
                 break;
@@ -172,6 +176,7 @@ public class AgentP2 extends IntegratedAgent {
         if (replyObj.get("result").asString().contains("ok")) {
             this.perceptions = new JsonArray(replyObj.get("details").asObject().get("perceptions").asArray());
             this.setEnergy("readSensors");
+            System.out.println("Se actualiza sensores");
             this.updateSensorsInfo();
         } else {
             System.out.println("[SENSORS] Error: " + reply);
@@ -399,7 +404,7 @@ public class AgentP2 extends IntegratedAgent {
                 //Mientras pueda avanzar hacia adelante se añade al plan de acciones
                 while(!this.isLookingOutOfFrontier() && count < 3){
                     count++;
-                    if(this.canExecuteNextAction("moveF") && this.distanceActual > 1){
+                    if(this.canExecuteNextAction("moveF") && this.distanceActual >= 1){
                         nextActions.add("moveF");
                         this.updateActualInfo("moveF");
                     }
@@ -407,8 +412,6 @@ public class AgentP2 extends IntegratedAgent {
                 count = 0;
             }else if(!this.isLanded()){
                 nextActions = this.landAgent();
-            }else{
-                this.status = Status.LOGOUT;
             }
         }
         
@@ -445,7 +448,7 @@ public class AgentP2 extends IntegratedAgent {
         
         int height = this.gpsActual.get(2) - this.visualSensor.get(this.xVisualPosActual).get(this.yVisualPosActual); 
 
-        return height == 0;
+        return height <= 0;
     }
 
     /**
