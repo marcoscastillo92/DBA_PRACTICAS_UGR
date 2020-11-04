@@ -95,21 +95,22 @@ public class AgentP2 extends IntegratedAgent {
                 this.createStrategy();
                 if(!this.actions.isEmpty() && !this.onTarget){
                     this.status = Status.HAS_ACTIONS;
-                }else if (this.status == Status.PLANNING && !this.onTarget){
+                }else if (this.status == Status.PLANNING && !(this.onTarget || this.distanceSensor <= 1)){
                     this.status = Status.NEEDS_INFO;
-                }else if (this.onTarget){
+                }else if (this.onTarget || this.distanceSensor <= 1){
                     this.status = Status.LOGOUT;
                 }
                 break;
             case LOGOUT:
                 this._exitRequested = true;
+                this.takeDown();
                 break;
         }
     }
 
     @Override
     protected void takeDown() {
-        this.myControlPanel.close();
+        //this.myControlPanel.close();
         this.logoutAgent();
         this.doCheckoutLARVA();
         this.doCheckoutPlatform();
@@ -381,8 +382,8 @@ public class AgentP2 extends IntegratedAgent {
         nextActions.clear();
         int count = 0;
         if(!this.objectiveReached()){
-            if(this.gpsActual.get(2) != this.maxflight - 6){
-                while(this.gpsActual.get(2) <= this.maxflight - 6 && count < 3){
+            if(this.gpsActual.get(2) <= this.maxflight - 5){
+                while(this.gpsActual.get(2) <= this.maxflight - 5 && count < 3){
                     nextActions.add("moveUP");
                     this.updateActualInfo("moveUP");
                     count++;
@@ -398,7 +399,7 @@ public class AgentP2 extends IntegratedAgent {
                 //Mientras pueda avanzar hacia adelante se añade al plan de acciones
                 while(!this.isLookingOutOfFrontier() && count < 3){
                     count++;
-                    if(this.canExecuteNextAction("moveF")){
+                    if(this.canExecuteNextAction("moveF") && this.distanceActual > 1){
                         nextActions.add("moveF");
                         this.updateActualInfo("moveF");
                     }
@@ -437,7 +438,7 @@ public class AgentP2 extends IntegratedAgent {
     }
 
     private boolean objectiveReached() {
-        return this.onTarget;
+        return this.onTarget || this.distanceSensor <= 1;
     }
 
     private boolean isLanded() {
