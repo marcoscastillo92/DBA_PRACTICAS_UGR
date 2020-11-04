@@ -30,7 +30,7 @@ public class AgentP2 extends IntegratedAgent {
     boolean needsNewActionPlan;
     private boolean needsInfo;
     // Control variables
-    int energy, xVisualNextPos, yVisualNextPos;
+    int energy, xVisualNextPos, yVisualNextPos, xVisualPosActual, yVisualPosActual;
     double compassSensor;
     double distanceSensor;
     double angularSensor;
@@ -77,32 +77,34 @@ public class AgentP2 extends IntegratedAgent {
                 this.current = this.readSensors(this.current);
                 this.needsInfo = false;
                 this.status = Status.PLANNING;
+                this.showInfo(this.current);
                 break;
             case HAS_ACTIONS:
-                if (this.hasActions() && !this.onTarget) {
-                    this.executeAction(this.current, this.actions.get(0));
-                    this.current = this.blockingReceive();
-                    this.setEnergy(this.actions.get(0));
-                    this.removeFirstAction();
-                } else if(this.status == Status.HAS_ACTIONS) {
+                this.executeAction(this.current, this.actions.get(0));
+                this.current = this.blockingReceive();
+                this.setEnergy(this.actions.get(0));
+                this.removeFirstAction();
+                if(this.actions.isEmpty()){
                     this.status = Status.PLANNING;
                 }
+                this.showInfo(this.current);
                 break;
             case PLANNING:
                 // Hay que ver cuando es necesario modificar needsInfo para evitar que no
                 // planifique sin información suficiente
                 this.createStrategy();
-                if(this.hasActions() && !this.onTarget){
+                if(!this.actions.isEmpty() && !this.onTarget){
                     this.status = Status.HAS_ACTIONS;
-                }else if (this.status == Status.PLANNING){
+                }else if (this.status == Status.PLANNING && !this.onTarget){
                     this.status = Status.NEEDS_INFO;
+                }else if (this.onTarget){
+                    this.status = Status.LOGOUT;
                 }
                 break;
             case LOGOUT:
                 this._exitRequested = true;
                 break;
         }
-        this.showInfo(this.current);
     }
 
     @Override
@@ -142,6 +144,7 @@ public class AgentP2 extends IntegratedAgent {
 
     private ACLMessage retrieveLoginMessage() {
         ACLMessage in = this.blockingReceive();
+        System.out.println("LOGIN MENSAJE ------------------ " +in);
         this.key = this.getStringContent(in, "key").replaceAll("\\\"", "");
         this.width = this.getIntContent(in, "width");
         this.height = this.getIntContent(in, "height");
@@ -165,7 +168,6 @@ public class AgentP2 extends IntegratedAgent {
 
         ACLMessage reply = this.blockingReceive();
         JsonObject replyObj = new JsonObject(Json.parse(reply.getContent()).asObject());
-        //System.out.println("ESTE ES EL REPLY DE SENSORES -----> " +replyObj);
         if (replyObj.get("result").asString().contains("ok")) {
             this.perceptions = new JsonArray(replyObj.get("details").asObject().get("perceptions").asArray());
             this.setEnergy("readSensors");
@@ -285,7 +287,7 @@ public class AgentP2 extends IntegratedAgent {
 
                 return elevations;
             case "gps":
-                JsonArray gpsData = this.perceptions.get(5).asObject().get("data").asArray().get(0).asArray();
+                JsonArray gpsData = this.perceptions.get(6).asObject().get("data").asArray().get(0).asArray();
                 ArrayList<Integer> coordenadas = new ArrayList<>();
 
                 for(int i=0; i<gpsData.size(); i++) {
@@ -302,18 +304,18 @@ public class AgentP2 extends IntegratedAgent {
      * Fn que actualiza la información local de los sensores y el agente
      */
     private void updateSensorsInfo(){
+        this.xVisualPosActual = 3;
+        this.yVisualPosActual = 3;
         this.onTarget = (boolean) this.interpretSensors("ontarget");
         this.compassSensor = (double)this.interpretSensors("compass");
         this.angularSensor = (double)this.interpretSensors("angular");
         this.distanceSensor = (double)this.interpretSensors("distance");
         this.visualSensor = (ArrayList<ArrayList<Integer>>)this.interpretSensors("visual");
         this.gpsSensor = (ArrayList<Integer>)this.interpretSensors("gps");
-        this.compassActual = (double)this.interpretSensors("compass");
-        this.angularActual = (double)this.interpretSensors("angular");
-        this.distanceActual = (double)this.interpretSensors("distance");
-        this.gpsActual = (ArrayList<Integer>)this.interpretSensors("gps");
-        System.out.println("DESPUES de actualizarse los sensores: ");
-        this.showTrackingInfo();
+        this.compassActual = this.compassSensor;
+        this.angularActual = this.angularSensor;
+        this.distanceActual = this.distanceSensor;
+        this.gpsActual = this.gpsSensor;
     }
 
     private ArrayList<String> orientate(double angular) {
@@ -321,17 +323,30 @@ public class AgentP2 extends IntegratedAgent {
         int d = 0;
 
         double compass = this.compassActual;
-        double diff = compass > angular ? compass-angular : angular-compass;
-
-        while (abs(diff) >= 45) {
-            diff = compass > angular ? compass-angular : angular-compass;
-            compass += 45.0;
-            d++;
-
-            if (compass > 180) { 
-                compass = -135;
-            }
+        double aux;
+        
+        System.out.println("ANTES DEL RECALCULO: angular: "+angular+" compass: "+compass);
+        
+        if(angular % 45 != 0){
+            aux = angular / 45;
+            aux = Math.round(aux);
+            angular = aux * 45;
         }
+        
+        if(compass % 45 != 0){
+            aux = compass / 45;
+            aux = Math.round(aux);
+            compass = aux * 45;
+        }
+
+        while (compass != angular) {
+             compass += 45.0;
+             d++;
+
+             if (compass > 180) { 
+                 compass = -135;
+             }
+         }
         
         if (d <= 4) {
             // El plan es girar a la derecha d veces
@@ -350,6 +365,7 @@ public class AgentP2 extends IntegratedAgent {
             }
         }
 
+        System.out.println("------------- GIROS: sensores: "+angular+" Compass Actual: "+compass);
         for(String action: plan){
             this.updateActualInfo(action);
         }
@@ -363,39 +379,31 @@ public class AgentP2 extends IntegratedAgent {
     private void createStrategy() {
         // orientarse, crear secuencia de acciones y añadirlas a this.actions
         nextActions.clear();
-        nextActions = this.orientate(this.angularSensor);
+        int count = 0;
+        if(!this.objectiveReached()){
+            if(this.gpsActual.get(2) != this.maxflight - 6){
+                while(this.gpsActual.get(2) <= this.maxflight - 6 && count < 3){
+                    nextActions.add("moveUP");
+                    this.updateActualInfo("moveUP");
+                    count++;
+                }
+                count = 0;
+            }else{
+                nextActions = this.orientate(this.angularSensor);            
+            }
+        }
         
-        if (!hasEnoughEnergy()) {
-            nextActions = this.landAgent();
-        }else if(nextActions.isEmpty() && this.hasEnoughtInfo()){
-            nextActions.clear();
+        if(nextActions.isEmpty() && this.hasEnoughtInfo()){
             if(!this.objectiveReached()){
                 //Mientras pueda avanzar hacia adelante se añade al plan de acciones
-                while(!this.isLookingOutOfFrontier()){
+                while(!this.isLookingOutOfFrontier() && count < 3){
+                    count++;
                     if(this.canExecuteNextAction("moveF")){
                         nextActions.add("moveF");
                         this.updateActualInfo("moveF");
-                    }else if(!this.isLookingOutOfFrontier()){
-                        int z = this.gpsActual.get(2);
-                        int visualHeight = this.visualSensor.get(this.xVisualNextPos).get(this.yVisualNextPos);
-                        int heightDiff = z - visualHeight;
-                        int counter = 0;
-                        while(counter < 3 && heightDiff <= 0 && (z + (-heightDiff)) < this.maxflight && !this.isLookingOutOfFrontier()){
-                            nextActions.add("moveU");
-                            this.updateActualInfo("moveU");
-                            z = this.gpsActual.get(2);
-                            heightDiff = z - visualHeight;
-                        }
-                        if(heightDiff <= 0 && z == this.maxflight){
-                            nextActions.clear();
-                            nextActions.add("rotateL");
-                            this.updateActualInfo("rotateL");
-                            if(this.canExecuteNextAction("moveF")){
-                                nextActions.add("moveF");
-                            }
-                        }
                     }
                 }
+                count = 0;
             }else if(!this.isLanded()){
                 nextActions = this.landAgent();
             }else{
@@ -433,10 +441,8 @@ public class AgentP2 extends IntegratedAgent {
     }
 
     private boolean isLanded() {
-        int xVisualPos = this.gpsSensor.get(0)-this.gpsActual.get(0) + 3;
-        int yVisualPos = this.gpsSensor.get(1)-this.gpsActual.get(1) + 3;
         
-        int height = this.gpsActual.get(2) - this.visualSensor.get(xVisualPos).get(yVisualPos); 
+        int height = this.gpsActual.get(2) - this.visualSensor.get(this.xVisualPosActual).get(this.yVisualPosActual); 
 
         return height == 0;
     }
@@ -504,14 +510,16 @@ public class AgentP2 extends IntegratedAgent {
             nextAction = this.actions.get(0);
         }
         int z = this.gpsActual.get(2);
-        int xVisualPos = this.gpsSensor.get(0)-this.gpsActual.get(0) + 3;
-        int yVisualPos = this.gpsSensor.get(1)-this.gpsActual.get(1) + 3;
         
         switch (nextAction) {
             case "moveF":
                 if(!this.isLookingOutOfFrontier()){
-                    this.getNextLidarPos();
-                    canExecute = z >= this.visualSensor.get(this.xVisualNextPos).get(this.yVisualNextPos);
+                    this.getNextVisualPos();
+                    if(this.xVisualNextPos >= 7 || this.xVisualNextPos < 0 || this.yVisualNextPos >= 7 || this.yVisualNextPos < 0){
+                        canExecute = false;
+                    }else{
+                        canExecute = z > this.visualSensor.get(this.xVisualNextPos).get(this.yVisualNextPos);
+                    }
                 }
                 break;
             case "rotateL":
@@ -519,17 +527,17 @@ public class AgentP2 extends IntegratedAgent {
                 canExecute = true;
                 break;
             case "touchD":
-                if((z - this.visualSensor.get(xVisualPos).get(yVisualPos)) <= 5){
+                if((z - this.visualSensor.get(this.xVisualPosActual).get(this.yVisualPosActual)) <= 5){
                     canExecute = true;
                 }
                 break;
-            case "moveUp":
+            case "moveUP":
                 if(z < this.maxflight ){
                     canExecute = true;
                 }
                 break;
-            case "moveDown":
-                if((z - this.visualSensor.get(xVisualPos).get(yVisualPos)) >= 5)
+            case "moveD":
+                if((z - this.visualSensor.get(this.xVisualPosActual).get(this.yVisualPosActual)) >= 5)
                 break;
             case "readSensors":
                 canExecute = true;
@@ -559,11 +567,8 @@ public class AgentP2 extends IntegratedAgent {
     private boolean hasEnoughEnergy() {
         int height;
         boolean enough = true;
-
-        int xVisualPos = this.gpsSensor.get(0)-this.gpsActual.get(0) + 3;
-        int yVisualPos = this.gpsSensor.get(1)-this.gpsActual.get(1) + 3;
         
-        height = this.gpsActual.get(2) - this.visualSensor.get(xVisualPos).get(yVisualPos); // Altura del dron - Altura del terreno debajo de él
+        height = this.gpsActual.get(2) - this.visualSensor.get(this.xVisualPosActual).get(this.yVisualPosActual); // Altura del dron - Altura del terreno debajo de él
         
         if (height + 10 >= this.energy) {
             enough = false;
@@ -580,11 +585,10 @@ public class AgentP2 extends IntegratedAgent {
                 this.energy--;
                 break;
             case "touchD":
-                // Poner el índice de la altura, MODIFICAR
-                this.energy -= this.perceptions.get(0).asInt();
+                this.energy -= this.gpsActual.get(2) - this.visualSensor.get(this.xVisualPosActual).get(this.yVisualPosActual);
                 break;
-            case "moveUp":
-            case "moveDown":
+            case "moveUP":
+            case "moveD":
                 this.energy -= 5;
                 break;
             case "readSensors":
@@ -596,45 +600,44 @@ public class AgentP2 extends IntegratedAgent {
     /**
      * Fn que actualiza cual sería la siguiente posición del lidar si avanzamos con la orientación actual
      */
-    private void getNextLidarPos() {
-        int xVisualPos = this.gpsSensor.get(0)-this.gpsActual.get(0) + 3;
-        int yVisualPos = this.gpsSensor.get(1)-this.gpsActual.get(1) + 3;
+    private void getNextVisualPos() {
         String lookingAt = this.whereIsLooking();
         
         switch(lookingAt){
             case "N":
-                this.xVisualNextPos = xVisualPos;
-                this.yVisualNextPos = yVisualPos-1;
+                this.xVisualNextPos = this.xVisualPosActual;
+                this.yVisualNextPos = --this.yVisualPosActual;
                 break;
             case "NE":
-                this.xVisualNextPos = xVisualPos+1;
-                this.yVisualNextPos = yVisualPos-1;
+                this.xVisualNextPos = ++this.xVisualPosActual;
+                this.yVisualNextPos = --this.yVisualPosActual;
                 break;
             case "E":
-                this.xVisualNextPos = xVisualPos+1;
-                this.yVisualNextPos = yVisualPos;
+                this.xVisualNextPos = ++this.xVisualPosActual;
+                this.yVisualNextPos = this.yVisualPosActual;
                 break;
             case "SE":
-                this.xVisualNextPos = xVisualPos+1;
-                this.yVisualNextPos = yVisualPos+1;
+                this.xVisualNextPos = ++this.xVisualPosActual;
+                this.yVisualNextPos = ++this.yVisualPosActual;
                 break;
             case "S":
-                this.xVisualNextPos = xVisualPos;
-                this.yVisualNextPos = yVisualPos+1;
+                this.xVisualNextPos = this.xVisualPosActual;
+                this.yVisualNextPos = ++this.yVisualPosActual;
                 break;
             case "NW":
-                this.xVisualNextPos = xVisualPos-1;
-                this.yVisualNextPos = yVisualPos-1;
+                this.xVisualNextPos = --this.xVisualPosActual;
+                this.yVisualNextPos = --this.yVisualPosActual;
                 break;
             case "W":
-                this.xVisualNextPos = xVisualPos-1;
-                this.yVisualNextPos = yVisualPos;
+                this.xVisualNextPos = --this.xVisualPosActual;
+                this.yVisualNextPos = this.yVisualPosActual;
                 break;
             case "SW":
-                this.xVisualNextPos = xVisualPos-1;
-                this.yVisualNextPos = yVisualPos+1;
+                this.xVisualNextPos = --this.xVisualPosActual;
+                this.yVisualNextPos = ++this.yVisualPosActual;
                 break;
         }
+        System.out.println("Obtiene el siguiente visual position que es x: "+this.xVisualNextPos+"; y: "+this.yVisualNextPos);
     }
 
     /**
@@ -642,13 +645,6 @@ public class AgentP2 extends IntegratedAgent {
      * @param action 
      */
     private void updateActualInfo(String action) {
-        /*
-        Sensores locales que hay que actualizar
-            compassActual
-            angularActual 
-            distanceActual
-            gpsActual
-        */
         switch(action){
             case "moveF":
                 //Actualizar distancia al objetivo
@@ -672,16 +668,14 @@ public class AgentP2 extends IntegratedAgent {
                 break;
             case "touchD":
                 //Aterriza y está en z 0
-                int xVisualPos = this.gpsSensor.get(0)-this.gpsActual.get(0) + 3;
-                int yVisualPos = this.gpsSensor.get(1)-this.gpsActual.get(1) + 3;
-                int actualHeight = this.visualSensor.get(xVisualPos).get(yVisualPos);
+                int actualHeight = this.visualSensor.get(this.xVisualPosActual).get(this.yVisualPosActual);
                 this.gpsActual.set(2, actualHeight);
                 break;
-            case "moveUp":
+            case "moveUP":
                 actualHeight = this.gpsActual.get(2);
                 this.gpsActual.set(2, actualHeight+5);
                 break;
-            case "moveDown":
+            case "moveD":
                 actualHeight = this.gpsActual.get(2);
                 this.gpsActual.set(2, actualHeight-5);
                 break;
@@ -756,14 +750,14 @@ public class AgentP2 extends IntegratedAgent {
                 if(abs(this.angularActual - this.compassActual) > 45){
                     this.distanceActual++;
                 }else{
-                    this.distanceActual-= 0.5;
+                    this.distanceActual--;
                 }
             }else{
                 //Si está a más de un giro, se aleja
                 if(abs(this.compassActual - this.angularActual) > 45){
                     this.distanceActual++;
                 }else{
-                    this.distanceActual-= 0.5;
+                    this.distanceActual--;
                 }
             }
         }
