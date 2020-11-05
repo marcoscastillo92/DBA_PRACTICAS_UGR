@@ -20,7 +20,7 @@ public class AgentP2 extends IntegratedAgent {
     int width, height, maxflight;
     JsonArray options;
     JsonArray sensors;
-    String world = "World1";
+    String world = "World2";
     String[] sensores = { "alive", "ontarget", "compass", "angular", "distance", "visual", "gps" };
     // General use variables
     JsonArray perceptions;
@@ -406,7 +406,7 @@ public class AgentP2 extends IntegratedAgent {
             //Mientras pueda avanzar hacia adelante se añade al plan de acciones
             while(!this.isLookingOutOfFrontier() && count < 3){
                 count++;
-                if(this.canExecuteNextAction("moveF") && this.distanceSensor >= 1){
+                if(this.canExecuteNextAction("moveF") && this.distanceActual >= 1){
                     nextActions.add("moveF");
                     this.updateActualInfo("moveF");
                 }
@@ -442,7 +442,7 @@ public class AgentP2 extends IntegratedAgent {
     }
 
     private boolean objectiveReached() {
-        return this.onTarget || this.distanceSensor < 1;
+        return this.onTarget || this.distanceActual < 1;
     }
 
     private boolean isLanded() {
@@ -518,8 +518,8 @@ public class AgentP2 extends IntegratedAgent {
         
         switch (nextAction) {
             case "moveF":
-                int [] visualNextPos = this.getNextVisualPos();
                 if(!this.isLookingOutOfFrontier()){
+                int [] visualNextPos = this.getNextVisualPos();
                     if(visualNextPos[0] < 7 && visualNextPos[0] >= 0 && visualNextPos[1] < 7 && visualNextPos[1] >= 0){
                         if(this.visualSensor.get(visualNextPos[1]).get(visualNextPos[0]) >= 0){
                             canExecute = z > this.visualSensor.get(visualNextPos[1]).get(visualNextPos[0]);
@@ -654,8 +654,8 @@ public class AgentP2 extends IntegratedAgent {
                 y = ++this.yVisualAuxActualPos;
                 break;
         }
-        if(this.yVisualAuxActualPos < 7 && this.xVisualAuxActualPos < 7)
-            System.out.println("Obtiene el siguiente visual position que es x: "+this.yVisualAuxActualPos+"; y: "+this.xVisualAuxActualPos+" y el visual es: "+this.visualSensor.get(this.yVisualAuxActualPos).get(this.xVisualAuxActualPos));
+        //if(this.yVisualAuxActualPos < 7 && this.xVisualAuxActualPos < 7)
+            //System.out.println("Obtiene el siguiente visual position que es x: "+this.yVisualAuxActualPos+"; y: "+this.xVisualAuxActualPos+" y el visual es: "+this.visualSensor.get(this.yVisualAuxActualPos).get(this.xVisualAuxActualPos));
         return new int[]{x,y};
     }
 
