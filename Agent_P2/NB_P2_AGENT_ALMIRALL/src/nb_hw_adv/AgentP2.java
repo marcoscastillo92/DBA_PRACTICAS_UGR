@@ -20,7 +20,7 @@ public class AgentP2 extends IntegratedAgent {
     int width, height, maxflight;
     JsonArray options;
     JsonArray sensors;
-    String world = "World4";
+    String world = "World5";
     String[] sensores = { "alive", "ontarget", "compass", "angular", "distance", "visual", "gps" };
     // General use variables
     JsonArray perceptions;
@@ -152,6 +152,7 @@ public class AgentP2 extends IntegratedAgent {
         this.width = this.getIntContent(in, "width");
         this.height = this.getIntContent(in, "height");
         this.maxflight = this.getIntContent(in, "maxflight");
+        System.out.println("ALTURA MAXIMA "+this.maxflight);
         this.options = this.getJsonArrayContent(in, "capabilities");
 
         return in;
@@ -395,7 +396,8 @@ public class AgentP2 extends IntegratedAgent {
                     if(this.visualSensor.get(visualNextPos[1]).get(visualNextPos[0]) >= 0){
                         int z = this.gpsActual.get(2);
                         if(z <= this.visualSensor.get(visualNextPos[1]).get(visualNextPos[0])){
-                            while(!this.canExecuteNextAction("moveF") && this.gpsActual.get(2) <= this.maxflight - 5 && count < 3){
+                            while(!this.canExecuteNextAction("moveF") && (this.gpsActual.get(2)+5) < this.maxflight && count < 3){
+                                System.out.println("QUIERE SUBIR : Altura->"+ this.gpsActual.get(2));
                                 nextActions.add("moveUP");
                                 this.updateActualInfo("moveUP");
                                 count++;
