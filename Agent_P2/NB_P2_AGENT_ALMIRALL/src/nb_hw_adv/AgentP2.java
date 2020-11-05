@@ -77,7 +77,11 @@ public class AgentP2 extends IntegratedAgent {
             case NEEDS_INFO:
                 this.current = this.readSensors(this.current);
                 this.needsInfo = false;
-                this.status = Status.PLANNING;
+                if(this.objectiveReached() && this.isLanded()){
+                    this.status = Status.LOGOUT;
+                }else{
+                    this.status = Status.PLANNING;            
+                }
                 this.showInfo(this.current);
                 break;
             case HAS_ACTIONS:
@@ -96,10 +100,8 @@ public class AgentP2 extends IntegratedAgent {
                 this.createStrategy();
                 if(!this.actions.isEmpty() && !this.onTarget){
                     this.status = Status.HAS_ACTIONS;
-                }else if (this.status == Status.PLANNING && !(this.onTarget || this.distanceSensor < 1)){
+                }else{
                     this.status = Status.NEEDS_INFO;
-                }else if (this.onTarget || this.distanceSensor < 1){
-                    this.status = Status.LOGOUT;
                 }
                 break;
             case LOGOUT:
@@ -412,8 +414,6 @@ public class AgentP2 extends IntegratedAgent {
             count = 0;
         }else if(!this.isLanded()){
             nextActions = this.landAgent();
-        }else{
-            status = Status.LOGOUT;
         }
         
         if(nextActions.isEmpty()){
