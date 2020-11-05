@@ -77,11 +77,7 @@ public class AgentP2 extends IntegratedAgent {
             case NEEDS_INFO:
                 this.current = this.readSensors(this.current);
                 this.needsInfo = false;
-                if(this.objectiveReached()){
-                    this.status = Status.LOGOUT;
-                }else{
-                    this.status = Status.PLANNING;
-                }
+                this.status = Status.PLANNING;
                 this.showInfo(this.current);
                 break;
             case HAS_ACTIONS:
@@ -281,11 +277,10 @@ public class AgentP2 extends IntegratedAgent {
             case "visual":
                 JsonArray visualData = this.perceptions.get(5).asObject().get("data").asArray();
                 ArrayList<ArrayList<Integer>> elevations = new ArrayList<>();
-                ArrayList<Integer> element = new ArrayList<>();
                 
-                for(int i=0; i<visualData.size(); i++) {
-                    JsonArray array =  visualData.get(i).asArray();
-                    element.clear();
+                for(JsonValue value: visualData) {
+                    JsonArray array = new JsonArray(value.asArray());
+                    ArrayList<Integer> element = new ArrayList<>();
                     for(int j=0; j<array.size(); j++) {
                         element.add(array.get(j).asInt());
                     }
@@ -388,38 +383,37 @@ public class AgentP2 extends IntegratedAgent {
         nextActions.clear();
         int count = 0;
         if(!this.objectiveReached()){
+            nextActions = this.orientate(this.angularSensor);    
             int [] visualNextPos = this.getNextVisualPos();
             if(visualNextPos[0] < 7 && visualNextPos[0] >= 0 && visualNextPos[1] < 7 && visualNextPos[1] >= 0){
-                if(this.visualSensor.get(visualNextPos[0]).get(visualNextPos[1]) >= 0){
+                if(this.visualSensor.get(visualNextPos[1]).get(visualNextPos[0]) >= 0){
                     int z = this.gpsActual.get(2);
-                    if(z <= this.visualSensor.get(visualNextPos[0]).get(visualNextPos[1])){
+                    if(z <= this.visualSensor.get(visualNextPos[1]).get(visualNextPos[0])){
                         while(!this.canExecuteNextAction("moveF") && this.gpsActual.get(2) <= this.maxflight - 5 && count < 3){
                             nextActions.add("moveUP");
                             this.updateActualInfo("moveUP");
                             count++;
                         }
                         count = 0;
-                    }else{
-                        nextActions = this.orientate(this.angularSensor);            
                     }
                 }
             }
         }
         
-        if(nextActions.isEmpty() && this.hasEnoughtInfo()){
-            if(!this.objectiveReached()){
-                //Mientras pueda avanzar hacia adelante se añade al plan de acciones
-                while(!this.isLookingOutOfFrontier() && count < 3){
-                    count++;
-                    if(this.canExecuteNextAction("moveF") && this.distanceActual >= 1){
-                        nextActions.add("moveF");
-                        this.updateActualInfo("moveF");
-                    }
+        if(!this.objectiveReached()){
+            //Mientras pueda avanzar hacia adelante se añade al plan de acciones
+            while(!this.isLookingOutOfFrontier() && count < 3){
+                count++;
+                if(this.canExecuteNextAction("moveF") && this.distanceSensor >= 1){
+                    nextActions.add("moveF");
+                    this.updateActualInfo("moveF");
                 }
-                count = 0;
-            }else if(!this.isLanded()){
-                nextActions = this.landAgent();
             }
+            count = 0;
+        }else if(!this.isLanded()){
+            nextActions = this.landAgent();
+        }else{
+            status = Status.LOGOUT;
         }
         
         if(nextActions.isEmpty()){
@@ -448,7 +442,7 @@ public class AgentP2 extends IntegratedAgent {
     }
 
     private boolean objectiveReached() {
-        return this.onTarget || this.distanceSensor <= 1;
+        return this.onTarget || this.distanceSensor < 1;
     }
 
     private boolean isLanded() {
@@ -527,8 +521,8 @@ public class AgentP2 extends IntegratedAgent {
                 int [] visualNextPos = this.getNextVisualPos();
                 if(!this.isLookingOutOfFrontier()){
                     if(visualNextPos[0] < 7 && visualNextPos[0] >= 0 && visualNextPos[1] < 7 && visualNextPos[1] >= 0){
-                        if(this.visualSensor.get(visualNextPos[0]).get(visualNextPos[1]) >= 0){
-                            canExecute = z > this.visualSensor.get(visualNextPos[0]).get(visualNextPos[1]);
+                        if(this.visualSensor.get(visualNextPos[1]).get(visualNextPos[0]) >= 0){
+                            canExecute = z > this.visualSensor.get(visualNextPos[1]).get(visualNextPos[0]);
                             if(canExecute){
                                 this.xVisualPosActual = this.xVisualAuxActualPos;
                                 this.yVisualPosActual = this.yVisualAuxActualPos;
@@ -625,6 +619,7 @@ public class AgentP2 extends IntegratedAgent {
         int y = 0;
         this.xVisualAuxActualPos = this.xVisualPosActual;
         this.yVisualAuxActualPos = this.yVisualPosActual;
+        System.out.println("Antes de obtener siguiente posicion x: "+this.yVisualAuxActualPos+"; y: "+this.xVisualAuxActualPos+" y mira hacia el "+lookingAt);
         switch(lookingAt){
             case "N":
                 x = this.xVisualAuxActualPos;
@@ -659,7 +654,8 @@ public class AgentP2 extends IntegratedAgent {
                 y = ++this.yVisualAuxActualPos;
                 break;
         }
-        System.out.println("Obtiene el siguiente visual position que es x: "+this.xVisualAuxActualPos+"; y: "+this.yVisualAuxActualPos);
+        if(this.yVisualAuxActualPos < 7 && this.xVisualAuxActualPos < 7)
+            System.out.println("Obtiene el siguiente visual position que es x: "+this.yVisualAuxActualPos+"; y: "+this.xVisualAuxActualPos+" y el visual es: "+this.visualSensor.get(this.yVisualAuxActualPos).get(this.xVisualAuxActualPos));
         return new int[]{x,y};
     }
 
@@ -709,9 +705,11 @@ public class AgentP2 extends IntegratedAgent {
     private void showTrackingInfo(){
         String gps_msg = "GPS Actual: [" + this.gpsActual.get(0) + ", " + this.gpsActual.get(1) + ", " + this.gpsActual.get(2) + "] \n" + "GPS Sensores: [" + this.gpsSensor.get(0) + ", " + this.gpsSensor.get(1) + ", " + this.gpsSensor.get(2) + "] \n";
         String visual_msg = "Visual Sensor: \n";
-        for(ArrayList<Integer> row: this.visualSensor){
+        for(int i = 0; i < this.visualSensor.size(); i++){
             visual_msg += "[ ";
-            for(int value: row){
+            ArrayList<Integer> array = this.visualSensor.get(i);
+            for (int j = 0; j < array.size(); j++) {
+                int value = array.get(j);
                 visual_msg += value + ", ";
             }
             visual_msg += "]\n ";
