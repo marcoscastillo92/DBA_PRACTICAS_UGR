@@ -30,7 +30,7 @@ public class AgentP2 extends IntegratedAgent {
     boolean needsNewActionPlan;
     private boolean needsInfo;
     // Control variables
-    int energy, xVisualNextPos, yVisualNextPos, xVisualPosActual, yVisualPosActual;
+    int energy, xVisualAuxActualPos, yVisualAuxActualPos, xVisualPosActual, yVisualPosActual;
     double compassSensor;
     double distanceSensor;
     double angularSensor;
@@ -43,6 +43,7 @@ public class AgentP2 extends IntegratedAgent {
     ArrayList<String> nextActions;
     JsonArray perceptionsAuxiliar;
     boolean onTarget;
+    private boolean borderOfMap;
 
     @Override
     public void setup() {
@@ -387,15 +388,21 @@ public class AgentP2 extends IntegratedAgent {
         nextActions.clear();
         int count = 0;
         if(!this.objectiveReached()){
-            if(this.gpsActual.get(2) <= this.maxflight - 5){
-                while(this.gpsActual.get(2) <= this.maxflight - 5 && count < 3){
-                    nextActions.add("moveUP");
-                    this.updateActualInfo("moveUP");
-                    count++;
+            int [] visualNextPos = this.getNextVisualPos();
+            if(visualNextPos[0] < 7 && visualNextPos[0] >= 0 && visualNextPos[1] < 7 && visualNextPos[1] >= 0){
+                if(this.visualSensor.get(visualNextPos[0]).get(visualNextPos[1]) >= 0){
+                    int z = this.gpsActual.get(2);
+                    if(z <= this.visualSensor.get(visualNextPos[0]).get(visualNextPos[1])){
+                        while(!this.canExecuteNextAction("moveF") && this.gpsActual.get(2) <= this.maxflight - 5 && count < 3){
+                            nextActions.add("moveUP");
+                            this.updateActualInfo("moveUP");
+                            count++;
+                        }
+                        count = 0;
+                    }else{
+                        nextActions = this.orientate(this.angularSensor);            
+                    }
                 }
-                count = 0;
-            }else{
-                nextActions = this.orientate(this.angularSensor);            
             }
         }
         
@@ -517,12 +524,20 @@ public class AgentP2 extends IntegratedAgent {
         
         switch (nextAction) {
             case "moveF":
+                int [] visualNextPos = this.getNextVisualPos();
                 if(!this.isLookingOutOfFrontier()){
-                    this.getNextVisualPos();
-                    if(this.xVisualNextPos >= 7 || this.xVisualNextPos < 0 || this.yVisualNextPos >= 7 || this.yVisualNextPos < 0){
-                        canExecute = false;
+                    if(visualNextPos[0] < 7 && visualNextPos[0] >= 0 && visualNextPos[1] < 7 && visualNextPos[1] >= 0){
+                        if(this.visualSensor.get(visualNextPos[0]).get(visualNextPos[1]) >= 0){
+                            canExecute = z > this.visualSensor.get(visualNextPos[0]).get(visualNextPos[1]);
+                            if(canExecute){
+                                this.xVisualPosActual = this.xVisualAuxActualPos;
+                                this.yVisualPosActual = this.yVisualAuxActualPos;
+                            }
+                        }else{
+                            canExecute = false;
+                        }
                     }else{
-                        canExecute = z > this.visualSensor.get(this.xVisualNextPos).get(this.yVisualNextPos);
+                        canExecute = false;
                     }
                 }
                 break;
@@ -604,44 +619,48 @@ public class AgentP2 extends IntegratedAgent {
     /**
      * Fn que actualiza cual sería la siguiente posición del lidar si avanzamos con la orientación actual
      */
-    private void getNextVisualPos() {
+    private int[] getNextVisualPos() {
         String lookingAt = this.whereIsLooking();
-        
+        int x = 0;
+        int y = 0;
+        this.xVisualAuxActualPos = this.xVisualPosActual;
+        this.yVisualAuxActualPos = this.yVisualPosActual;
         switch(lookingAt){
             case "N":
-                this.xVisualNextPos = this.xVisualPosActual;
-                this.yVisualNextPos = --this.yVisualPosActual;
+                x = this.xVisualAuxActualPos;
+                y = --this.yVisualAuxActualPos;
                 break;
             case "NE":
-                this.xVisualNextPos = ++this.xVisualPosActual;
-                this.yVisualNextPos = --this.yVisualPosActual;
+                x = ++this.xVisualAuxActualPos;
+                y = --this.yVisualAuxActualPos;
                 break;
             case "E":
-                this.xVisualNextPos = ++this.xVisualPosActual;
-                this.yVisualNextPos = this.yVisualPosActual;
+                x = ++this.xVisualAuxActualPos;
+                y = this.yVisualAuxActualPos;
                 break;
             case "SE":
-                this.xVisualNextPos = ++this.xVisualPosActual;
-                this.yVisualNextPos = ++this.yVisualPosActual;
+                x = ++this.xVisualAuxActualPos;
+                y = ++this.yVisualAuxActualPos;
                 break;
             case "S":
-                this.xVisualNextPos = this.xVisualPosActual;
-                this.yVisualNextPos = ++this.yVisualPosActual;
+                x = this.xVisualAuxActualPos;
+                y = ++this.yVisualAuxActualPos;
                 break;
             case "NW":
-                this.xVisualNextPos = --this.xVisualPosActual;
-                this.yVisualNextPos = --this.yVisualPosActual;
+                x = --this.xVisualAuxActualPos;
+                y = --this.yVisualAuxActualPos;
                 break;
             case "W":
-                this.xVisualNextPos = --this.xVisualPosActual;
-                this.yVisualNextPos = this.yVisualPosActual;
+                x = --this.xVisualAuxActualPos;
+                y = this.yVisualAuxActualPos;
                 break;
             case "SW":
-                this.xVisualNextPos = --this.xVisualPosActual;
-                this.yVisualNextPos = ++this.yVisualPosActual;
+                x = --this.xVisualAuxActualPos;
+                y = ++this.yVisualAuxActualPos;
                 break;
         }
-        System.out.println("Obtiene el siguiente visual position que es x: "+this.xVisualNextPos+"; y: "+this.yVisualNextPos);
+        System.out.println("Obtiene el siguiente visual position que es x: "+this.xVisualAuxActualPos+"; y: "+this.yVisualAuxActualPos);
+        return new int[]{x,y};
     }
 
     /**
