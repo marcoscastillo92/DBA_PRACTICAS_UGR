@@ -31,6 +31,7 @@ public class AgentP2 extends IntegratedAgent {
     private boolean needsInfo;
     // Control variables
     int energy, xVisualAuxActualPos, yVisualAuxActualPos, xVisualPosActual, yVisualPosActual;
+    boolean aliveSensor;
     double compassSensor;
     double distanceSensor;
     double angularSensor;
@@ -45,6 +46,10 @@ public class AgentP2 extends IntegratedAgent {
     boolean onTarget;
     private boolean borderOfMap;
 
+    /**
+     * Descripcion
+     * @author 
+     */
     @Override
     public void setup() {
         super.setup();
@@ -52,7 +57,7 @@ public class AgentP2 extends IntegratedAgent {
         this.doCheckinLARVA();
         this.perceptions = new JsonArray();
         this.actions = new ArrayList<>();
-        this.visualSensor = new ArrayList<ArrayList<Integer>>();
+        this.visualSensor = new ArrayList<>();
         this.gpsSensor = new ArrayList<>();
         this.gpsActual = new ArrayList<>();
         this.nextActions = new ArrayList<>();
@@ -67,6 +72,10 @@ public class AgentP2 extends IntegratedAgent {
         this._exitRequested = false;
     }
 
+    /**
+     * Descripcion
+     * @author 
+     */
     @Override
     public void plainExecute() {
         switch (this.status) {
@@ -91,16 +100,21 @@ public class AgentP2 extends IntegratedAgent {
                 if(this.actions.isEmpty()){
                     this.status = Status.PLANNING;
                 }
-                this.showInfo(this.current);
                 break;
             case PLANNING:
                 // Hay que ver cuando es necesario modificar needsInfo para evitar que no
                 // planifique sin información suficiente
-                this.createStrategy();
-                if(!this.actions.isEmpty() && !this.onTarget){
-                    this.status = Status.HAS_ACTIONS;
-                }else{
-                    this.status = Status.NEEDS_INFO;
+                if(this.aliveSensor) {
+                    this.createStrategy();
+                    if(!this.actions.isEmpty() && !this.onTarget){
+                        this.status = Status.HAS_ACTIONS;
+                    }
+                    else{
+                        this.status = Status.NEEDS_INFO;
+                    }
+                }
+                else {
+                    this.status = Status.LOGOUT;
                 }
                 break;
             case LOGOUT:
@@ -110,6 +124,10 @@ public class AgentP2 extends IntegratedAgent {
         }
     }
 
+    /**
+     * Descripcion
+     * @author 
+     */
     @Override
     protected void takeDown() {
         //this.myControlPanel.close();
@@ -119,6 +137,13 @@ public class AgentP2 extends IntegratedAgent {
         super.takeDown();
     }
 
+    /**
+     * Descripcion
+     * @author 
+     * @param world
+     * @param sensores
+     * @return 
+     */
     protected JsonObject generateLogin(String world, String[] sensores) {
         JsonObject login_json;
         // Generate JSON body
@@ -137,6 +162,12 @@ public class AgentP2 extends IntegratedAgent {
         return login_json;
     }
 
+    /**
+     * Descripcion
+     * @author 
+     * @param receiver
+     * @param body
+     */
     public void sendMessage(String receiver, JsonObject body) {
         ACLMessage out = new ACLMessage();
         out.setSender(getAID());
@@ -145,6 +176,11 @@ public class AgentP2 extends IntegratedAgent {
         this.send(out);
     }
 
+    /**
+     * Descripcion
+     * @author 
+     * @return 
+     */
     private ACLMessage retrieveLoginMessage() {
         ACLMessage in = this.blockingReceive();
         //System.out.println("LOGIN MENSAJE ------------------ " +in);
@@ -158,12 +194,22 @@ public class AgentP2 extends IntegratedAgent {
         return in;
     }
 
+    /**
+     * Descripcion
+     * @author 
+     * @return 
+     */
     private ACLMessage makeLogin() {
         JsonObject login_json = new JsonObject(this.generateLogin(this.world, this.sensores));
         this.sendMessage(this.receiver, login_json);
         return this.retrieveLoginMessage();
     }
 
+    /**
+     * Descripcion
+     * @author 
+     * @return 
+     */
     private ACLMessage readSensors(ACLMessage in) {
         JsonObject read_sensors_json = new JsonObject();
         read_sensors_json.add("command", "read");
@@ -184,6 +230,12 @@ public class AgentP2 extends IntegratedAgent {
         return reply;
     }
 
+    /**
+     * Descripcion
+     * @author
+     * @param msg
+     * @param action
+     */
     public void executeAction(ACLMessage msg, String action) {
         JsonObject execute_json = new JsonObject();
         execute_json.add("command", "execute");
@@ -192,6 +244,12 @@ public class AgentP2 extends IntegratedAgent {
         this.replyMessage(msg, execute_json);
     }
 
+    /**
+     * Descripcion
+     * @author
+     * @param in
+     * @param content
+     */
     public void replyMessage(ACLMessage in, JsonObject content) {
         // Parseo del contenido a String para añadirlo al mensaje        
 
@@ -200,6 +258,11 @@ public class AgentP2 extends IntegratedAgent {
         this.sendServer(out);
     }
 
+    /**
+     * Descripcion
+     * @author
+     * @return
+     */
     public ACLMessage retrieveMessage() {
         ACLMessage in = this.blockingReceive();
         String result = getStringContent(in, "result").replaceAll("\\\"", "");
@@ -210,31 +273,69 @@ public class AgentP2 extends IntegratedAgent {
         }
     }
 
+    /**
+     * Descripcion
+     * @author
+     * @param msg
+     * @param field
+     * @return
+     */
     public String getStringContent(ACLMessage msg, String field) {
         JsonObject res = new JsonObject(Json.parse(msg.getContent()).asObject());
         return res.get(field).toString();
     }
 
+    /**
+     * Descripcion
+     * @author
+     * @param msg
+     * @param field
+     * @return
+     */
     public JsonObject getJsonContent(ACLMessage msg, String field) {
         JsonObject res = new JsonObject(Json.parse(msg.getContent()).asObject());
         return new JsonObject(res.get(field).asObject());
     }
 
+    /**
+     * Descripcion
+     * @author
+     * @param msg
+     * @return
+     */
     public JsonObject getJsonContent(ACLMessage msg) {
         JsonObject res = new JsonObject(Json.parse(msg.getContent()).asObject());
         return new JsonObject(res);
     }
 
+    /**
+     * Descripcion
+     * @author
+     * @param msg
+     * @param field
+     * @return
+     */
     public int getIntContent(ACLMessage msg, String field) {
         JsonObject res = new JsonObject(Json.parse(msg.getContent()).asObject());
         return res.get(field).asInt();
     }
 
+    /**
+     * Descripcion
+     * @author
+     * @param msg
+     * @param field
+     * @return
+     */
     public JsonArray getJsonArrayContent(ACLMessage msg, String field) {
         JsonObject res = new JsonObject(Json.parse(msg.getContent()).asObject());
         return new JsonArray(res.get(field).asArray());
     }
 
+    /**
+     * Descripcion
+     * @author
+     */
     public void logoutAgent() {
         JsonObject logout_json = new JsonObject();
         logout_json.add("command", "logout");
@@ -242,6 +343,10 @@ public class AgentP2 extends IntegratedAgent {
         this.sendMessage(this.receiver, logout_json);
     }
 
+    /**
+     * Descripcion
+     * @author
+     */
     private void removeFirstAction() {
             if(this.actions.size() > 1){
                 this.actions.remove(0);
@@ -251,54 +356,78 @@ public class AgentP2 extends IntegratedAgent {
             }    
     }
 
+    /**
+     * Descripcion
+     * @param action
+     * @author
+     */
     private void addAction(String action) {
         this.actions.add(action);
     }
 
+    /**
+     * Descripcion
+     * @author
+     * @return 
+     */
     private boolean hasActions() {
         return !this.actions.isEmpty();
     }
 
+    /**
+     * Descripcion
+     * @author
+     * @param  in
+     */
     private void showInfo(ACLMessage in) {
+        //Index 0 out of bounds for length 0
         this.myControlPanel.feedData(in, width, height, maxflight); // width height maxflight obtenidos en el login
         this.myControlPanel.fancyShow();
     }
 
+    /**
+     * Obtiene la informacion de un sensor
+     * @author Diego
+     * @param  sensor sensor a consultar
+     * @return objeto con la informacion del sensor indicado
+     */
     private Object interpretSensors(String sensor) {
-        switch(sensor) {
-            case "alive":
-                return this.perceptions.get(0).asObject().get("data").asArray().get(0).asInt() == 1;
-            case "ontarget":
-                return this.perceptions.get(1).asObject().get("data").asArray().get(0).asInt() == 1;
-            case "compass":
-                return this.perceptions.get(2).asObject().get("data").asArray().get(0).asDouble();
-            case "angular":
-                return this.perceptions.get(3).asObject().get("data").asArray().get(0).asDouble();
-            case "distance":
-                return this.perceptions.get(4).asObject().get("data").asArray().get(0).asDouble();
-            case "visual":
-                JsonArray visualData = this.perceptions.get(5).asObject().get("data").asArray();
-                ArrayList<ArrayList<Integer>> elevations = new ArrayList<>();
-                
-                for(JsonValue value: visualData) {
-                    JsonArray array = new JsonArray(value.asArray());
-                    ArrayList<Integer> element = new ArrayList<>();
-                    for(int j=0; j<array.size(); j++) {
-                        element.add(array.get(j).asInt());
+        if(!this.perceptions.isEmpty()) {
+            switch(sensor) {
+                case "alive":
+                    return this.perceptions.get(0).asObject().get("data").asArray().get(0).asInt() == 1;
+                case "ontarget":
+                    return this.perceptions.get(1).asObject().get("data").asArray().get(0).asInt() == 1;
+                case "compass":
+                    return this.perceptions.get(2).asObject().get("data").asArray().get(0).asDouble();
+                case "angular":
+                    return this.perceptions.get(3).asObject().get("data").asArray().get(0).asDouble();
+                case "distance":
+                    return this.perceptions.get(4).asObject().get("data").asArray().get(0).asDouble();
+                case "visual":
+                    JsonArray visualData = this.perceptions.get(5).asObject().get("data").asArray();
+                    ArrayList<ArrayList<Integer>> elevations = new ArrayList<>();
+
+                    for(JsonValue value: visualData) {
+                        JsonArray array = new JsonArray(value.asArray());
+                        ArrayList<Integer> element = new ArrayList<>();
+                        for(int j=0; j<array.size(); j++) {
+                            element.add(array.get(j).asInt());
+                        }
+                        elevations.add(element);
                     }
-                    elevations.add(element);
-                }
 
-                return elevations;
-            case "gps":
-                JsonArray gpsData = this.perceptions.get(6).asObject().get("data").asArray().get(0).asArray();
-                ArrayList<Integer> coordenadas = new ArrayList<>();
+                    return elevations;
+                case "gps":
+                    JsonArray gpsData = this.perceptions.get(6).asObject().get("data").asArray().get(0).asArray();
+                    ArrayList<Integer> coordenadas = new ArrayList<>();
 
-                for(int i=0; i<gpsData.size(); i++) {
-                    coordenadas.add(gpsData.get(i).asInt());
-                }
+                    for(int i=0; i<gpsData.size(); i++) {
+                        coordenadas.add(gpsData.get(i).asInt());
+                    }
 
-                return coordenadas;
+                    return coordenadas;
+            }
         }
         
         return null;
@@ -306,10 +435,12 @@ public class AgentP2 extends IntegratedAgent {
     
     /**
      * Fn que actualiza la información local de los sensores y el agente
+     * @author
      */
     private void updateSensorsInfo(){
         this.xVisualPosActual = 3;
         this.yVisualPosActual = 3;
+        this.aliveSensor = (boolean) this.interpretSensors("alive");
         this.onTarget = (boolean) this.interpretSensors("ontarget");
         this.compassSensor = (double)this.interpretSensors("compass");
         this.angularSensor = (double)this.interpretSensors("angular");
@@ -322,8 +453,14 @@ public class AgentP2 extends IntegratedAgent {
         this.gpsActual = this.gpsSensor;
     }
 
+    /**
+     * Descripcion
+     * @author
+     * @param  angular
+     * @return 
+     */
     private ArrayList<String> orientate(double angular) {
-        ArrayList<String> plan = new ArrayList<String>();
+        ArrayList<String> plan = new ArrayList<>();
         int d = 0;
 
         double compass = this.compassActual;
@@ -379,49 +516,60 @@ public class AgentP2 extends IntegratedAgent {
 
     /**
      * Fn que contiene toda la lógica de planificación de movimientos teniendo en cuenta el entorno
+     * @author
      */
     private void createStrategy() {
         // orientarse, crear secuencia de acciones y añadirlas a this.actions
         nextActions.clear();
         int count = 0;
-        if(!this.hasEnoughEnergy()){
+        //Si no tengo suficiente energia voy al suelo y recargo
+        if(!this.hasEnoughEnergy()) {
             nextActions = this.landAgent();
             nextActions.add("recharge");
             System.out.println("VA A BAJAR CON "+nextActions.size()+" MOVIMIENTOS");
-        }else{
+        }
+        //Si tengo suficiente energia
+        else {
+            //Si no he encontrado el objetivo
             if(!this.objectiveReached()){
-                nextActions = this.orientate(this.angularSensor);    
+                nextActions = this.orientate(this.angularSensor);
                 int [] visualNextPos = this.getNextVisualPos();
+                //Si la siguiente casilla esta dentro de la malla de visual
                 if(visualNextPos[0] < 7 && visualNextPos[0] >= 0 && visualNextPos[1] < 7 && visualNextPos[1] >= 0){
+                    //Si la siguiente casilla no se sale del mapa
                     if(this.visualSensor.get(visualNextPos[1]).get(visualNextPos[0]) >= 0){
                         int z = this.gpsActual.get(2);
-                        if(z <= this.visualSensor.get(visualNextPos[1]).get(visualNextPos[0])){
-                            while(!this.canExecuteNextAction("moveF") && (this.gpsActual.get(2)+5) < this.maxflight && count < 3){
-                                System.out.println("QUIERE SUBIR : Altura->"+ this.gpsActual.get(2));
+                        //Si la altura del dron es menor que la siguiente casilla
+                        if(z < this.visualSensor.get(visualNextPos[1]).get(visualNextPos[0])){
+                            //Mientras no pueda avanzar y mi altura+5 sea menor que la maxima, asciendo
+                            while(!this.canExecuteNextAction("moveF") && (z+5) < this.maxflight && count < 3){
+                                System.out.println("QUIERE SUBIR : Altura->"+ z);
                                 nextActions.add("moveUP");
                                 this.updateActualInfo("moveUP");
                                 count++;
                             }
-                            count = 0;
                         }
+                        //Si la altura de la siguiente casilla es igual o menor, avanzo
+                        else {
+                            while(count < 3){
+                                count++;
+                                // Si puedo avanzar y la distancia con el objetivo es mayor o igual que 1
+                                if(this.canExecuteNextAction("moveF") && this.distanceActual >= 1){
+                                    nextActions.add("moveF");
+                                    this.updateActualInfo("moveF");
+                                }
+                            }
+                        }
+                        count = 0;
                     }
                 }
             }
-
-            if(!this.objectiveReached()){
-                //Mientras pueda avanzar hacia adelante se añade al plan de acciones
-                while(!this.isLookingOutOfFrontier() && count < 3){
-                    count++;
-                    if(this.canExecuteNextAction("moveF") && this.distanceActual >= 1){
-                        nextActions.add("moveF");
-                        this.updateActualInfo("moveF");
-                    }
-                }
-                count = 0;
-            }else if(!this.isLanded()){
+            //Si he encontrado el objetivo, bajo
+            else if(!this.isLanded()){
                 nextActions = this.landAgent();
             }
-
+            
+            //Si no tengo acciones en el plan, necesito informacion
             if(nextActions.isEmpty()){
                 this.status = Status.NEEDS_INFO;
             }
@@ -433,36 +581,48 @@ public class AgentP2 extends IntegratedAgent {
         }
     }
     
+    /**
+     * Descripcion
+     * @author
+     * @return 
+     */
     private ArrayList<String> landAgent() {
-        ArrayList<String> nextActions = new ArrayList<>();
+        ArrayList<String> landActions = new ArrayList<>();
         while (!this.isLanded()) {
             if (this.canExecuteNextAction("touchD")) {
-                nextActions.add("touchD");
+                landActions.add("touchD");
                 this.updateActualInfo("touchD");
                 break;
             }else{
-                nextActions.add("moveD");
+                landActions.add("moveD");
                 this.updateActualInfo("moveD");
             }
         }
-        return nextActions;
+        return landActions;
     }
 
+    /**
+     * Descripcion
+     * @author
+     * @return 
+     */
     private boolean objectiveReached() {
         return this.onTarget || this.distanceActual < 1;
     }
 
+    /**
+     * Descripcion
+     * @author
+     * @return 
+     */
     private boolean isLanded() {
-        
-        int height = this.gpsActual.get(2) - this.visualSensor.get(this.xVisualPosActual).get(this.yVisualPosActual); 
-
-        return height <= 0;
+        return (this.gpsActual.get(2) - this.visualSensor.get(this.xVisualPosActual).get(this.yVisualPosActual)) <= 0;
     }
 
     /**
      * Fn que determina si el agente está en el límite de la información del lidar
      * de frente
-     * 
+     * @author
      * @return
      */
     private boolean isLookingOutOfFrontier(){
@@ -479,6 +639,7 @@ public class AgentP2 extends IntegratedAgent {
     
     /**
      * Fn que devuelve en String hacia donde está encarado el agente
+     * @author
      * @return String
      */
     private String whereIsLooking(){
@@ -514,6 +675,7 @@ public class AgentP2 extends IntegratedAgent {
 
     /**
      * Fn que indica si se puede o no ejecutar la siguiente acción con las actuales condiciones e información
+     * @author
      * @return boolean
      */
     private boolean canExecuteNextAction(String nextAction) {
@@ -523,13 +685,17 @@ public class AgentP2 extends IntegratedAgent {
         }
         int z = this.gpsActual.get(2);
         
-        switch (nextAction) {
+        switch(nextAction) {
             case "moveF":
+                //Si no estoy mirando a la forntera
                 if(!this.isLookingOutOfFrontier()){
-                int [] visualNextPos = this.getNextVisualPos();
+                    int [] visualNextPos = this.getNextVisualPos();
+                    //Si la siguiente casilla esta dentro de la malla del visual
                     if(visualNextPos[0] < 7 && visualNextPos[0] >= 0 && visualNextPos[1] < 7 && visualNextPos[1] >= 0){
+                        //Si la siguiente casilla no esta fuera del mapa
                         if(this.visualSensor.get(visualNextPos[1]).get(visualNextPos[0]) >= 0){
-                            canExecute = z > this.visualSensor.get(visualNextPos[1]).get(visualNextPos[0]);
+                            //puedo ejecutar accion si mi altura es mayor o igual que la altura de la siguiente casilla
+                            canExecute = z >= this.visualSensor.get(visualNextPos[1]).get(visualNextPos[0]);
                             if(canExecute){
                                 this.xVisualPosActual = this.xVisualAuxActualPos;
                                 this.yVisualPosActual = this.yVisualAuxActualPos;
@@ -584,13 +750,18 @@ public class AgentP2 extends IntegratedAgent {
         return !response; 
     }
 
+    /**
+     * Descripcion
+     * @author
+     * @return 
+     */
     private boolean hasEnoughEnergy() {
-        int height;
+        int distance;
         boolean enough = true;
         
-        height = this.gpsActual.get(2) - this.visualSensor.get(this.xVisualPosActual).get(this.yVisualPosActual); // Altura del dron - Altura del terreno debajo de él
-        if(height > 0){
-            if ((double)(this.energy/height) < 2.0) {
+        distance = this.gpsActual.get(2) - this.visualSensor.get(this.xVisualPosActual).get(this.yVisualPosActual); // Altura del dron - Altura del terreno debajo de él
+        if(distance > 0){
+            if ((double)(this.energy/distance) < 2.0) {
                 System.out.println("TIENE SUFICIENTE ENERGÍA: height: "+this.gpsActual.get(2)+"  visual: "+this.visualSensor.get(this.yVisualPosActual).get(this.xVisualPosActual));
                 enough = false;
             }
@@ -599,6 +770,10 @@ public class AgentP2 extends IntegratedAgent {
         return enough;
     }
 
+    /**
+     * Descripcion
+     * @author
+     */
     private void setEnergy(String action) {
         switch (action) {
             case "moveF":
@@ -624,6 +799,8 @@ public class AgentP2 extends IntegratedAgent {
 
     /**
      * Fn que actualiza cual sería la siguiente posición del lidar si avanzamos con la orientación actual
+     * @autor
+     * @return
      */
     private int[] getNextVisualPos() {
         String lookingAt = this.whereIsLooking();
@@ -715,6 +892,10 @@ public class AgentP2 extends IntegratedAgent {
         this.showTrackingInfo();
     }
     
+    /**
+     * Descripcion
+     * @author
+     */
     private void showTrackingInfo(){
         String gps_msg = "GPS Actual: [" + this.gpsActual.get(0) + ", " + this.gpsActual.get(1) + ", " + this.gpsActual.get(2) + "] \n" + "GPS Sensores: [" + this.gpsSensor.get(0) + ", " + this.gpsSensor.get(1) + ", " + this.gpsSensor.get(2) + "] \n";
         String visual_msg = "Visual Sensor: \n";
@@ -737,6 +918,7 @@ public class AgentP2 extends IntegratedAgent {
 
     /**
      * Actualiza la posición en el GPS según se haya movido y estuviese mirando, se llama cuando se hace un moveF solo
+     * @author
      */
     private void setActualGPS() {
         String lookingAt = this.whereIsLooking();
@@ -774,6 +956,7 @@ public class AgentP2 extends IntegratedAgent {
 
     /**
      * Actualiza la distancia al objetivo según se haya movido y estuviese mirando, solo se llama con moveF
+     * @author
      */
     private void setActualDistance() {
         if(this.angularActual == this.compassActual){
