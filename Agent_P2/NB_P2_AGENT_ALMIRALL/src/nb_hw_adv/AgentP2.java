@@ -559,8 +559,8 @@ public class AgentP2 extends IntegratedAgent {
                 int [] visualPosR = this.getNextVisualPos(this.xVisualPosActual, this.yVisualPosActual, this.whereIsGoingToLook("rotateR"));
                 
                 if(visualPosR[0] < 7 && visualPosR[0] >= 0 && visualPosR[1] < 7 && visualPosR[1] >= 0) {
-                    int [] nextPos = this.getNextPos(this.gpsActual.get(0), this.gpsActual.get(1), this.whereIsGoingToLook("rotateR"));
-                    if(this.visualSensor.get(visualPosR[1]).get(visualPosR[0]) >= this.maxflight && this.pathMap[nextPos[0]][nextPos[1]]) {
+                    //int [] nextPos = this.getNextPos(this.gpsActual.get(0), this.gpsActual.get(1), this.whereIsGoingToLook("rotateR"));
+                    if(this.visualSensor.get(visualPosR[1]).get(visualPosR[0]) >= this.maxflight) {
                         canRotateR = false;
                     }
                 }
@@ -569,8 +569,7 @@ public class AgentP2 extends IntegratedAgent {
                 int [] visualPosL = this.getNextVisualPos(this.xVisualPosActual, this.yVisualPosActual, this.whereIsGoingToLook("rotateL"));
                 
                 if(visualPosL[0] < 7 && visualPosL[0] >= 0 && visualPosL[1] < 7 && visualPosL[1] >= 0) {
-                    int [] nextPos = this.getNextPos(this.gpsActual.get(0), this.gpsActual.get(1), this.whereIsGoingToLook("rotateL"));
-                    if((this.visualSensor.get(visualPosL[1]).get(visualPosL[0]) >= this.maxflight) && this.pathMap[nextPos[0]][nextPos[1]]) {
+                    if(this.visualSensor.get(visualPosL[1]).get(visualPosL[0]) >= this.maxflight) {
                         canRotateL = false;
                     }
                 }
@@ -578,20 +577,26 @@ public class AgentP2 extends IntegratedAgent {
                 //Comprobar a donde gira
                 if (canRotateR && canRotateL) {
                     nextActions.add("rotateR");
-                    nextActions.add("moveF");
-
+                    if(this.canExecuteNextAction("rotateR")) {
+                        nextActions.add("moveF");
+                    }
+                    
                     this.esquivando = false;
                 }
                 else{
                     if (canRotateL && !canRotateR){
                         nextActions.add("rotateL");
-                        nextActions.add("moveF");
+                        if(this.canExecuteNextAction("rotateL")) {
+                            nextActions.add("moveF");
+                        }
 
                         this.esquivando = false;
                     }
                     if (canRotateR && !canRotateL){
                         nextActions.add("rotateR");
-                        nextActions.add("moveF");
+                        if(this.canExecuteNextAction("rotateR")) {
+                            nextActions.add("moveF");
+                        }
 
                         this.esquivando = false;
                     }
@@ -862,8 +867,48 @@ public class AgentP2 extends IntegratedAgent {
                 }
                 break;
             case "rotateL":
+                //Si no estoy mirando a la forntera
+                if(!this.isLookingOutOfFrontier()){
+                    int [] visualNextPos = this.getNextVisualPos(this.xVisualPosActual, this.yVisualPosActual, this.whereIsGoingToLook("rotateL"));
+                    //Si la siguiente casilla esta dentro de la malla del visual
+                    if(visualNextPos[0] < 7 && visualNextPos[0] >= 0 && visualNextPos[1] < 7 && visualNextPos[1] >= 0){
+                        //Si la siguiente casilla no esta fuera del mapa
+                        if(this.visualSensor.get(visualNextPos[1]).get(visualNextPos[0]) >= 0){
+                            //puedo ejecutar accion si mi altura es mayor o igual que la altura de la siguiente casilla
+                            canExecute = z >= this.visualSensor.get(visualNextPos[1]).get(visualNextPos[0]);
+                            if(canExecute){
+                                this.xVisualPosActual = this.xVisualAuxActualPos;
+                                this.yVisualPosActual = this.yVisualAuxActualPos;
+                            }
+                        }else{
+                            canExecute = false;
+                        }
+                    }else{
+                        canExecute = false;
+                    }
+                }
+                break;
             case "rotateR":
-                canExecute = true;
+                //Si no estoy mirando a la forntera
+                if(!this.isLookingOutOfFrontier()){
+                    int [] visualNextPos = this.getNextVisualPos(this.xVisualPosActual, this.yVisualPosActual, this.whereIsGoingToLook("rotateR"));
+                    //Si la siguiente casilla esta dentro de la malla del visual
+                    if(visualNextPos[0] < 7 && visualNextPos[0] >= 0 && visualNextPos[1] < 7 && visualNextPos[1] >= 0){
+                        //Si la siguiente casilla no esta fuera del mapa
+                        if(this.visualSensor.get(visualNextPos[1]).get(visualNextPos[0]) >= 0){
+                            //puedo ejecutar accion si mi altura es mayor o igual que la altura de la siguiente casilla
+                            canExecute = z >= this.visualSensor.get(visualNextPos[1]).get(visualNextPos[0]);
+                            if(canExecute){
+                                this.xVisualPosActual = this.xVisualAuxActualPos;
+                                this.yVisualPosActual = this.yVisualAuxActualPos;
+                            }
+                        }else{
+                            canExecute = false;
+                        }
+                    }else{
+                        canExecute = false;
+                    }
+                }
                 break;
             case "touchD":
                 if((z - this.visualSensor.get(this.xVisualPosActual).get(this.yVisualPosActual)) <= 5){
