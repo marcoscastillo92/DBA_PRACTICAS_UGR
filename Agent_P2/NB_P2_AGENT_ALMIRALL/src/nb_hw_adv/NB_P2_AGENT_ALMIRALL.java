@@ -9,7 +9,7 @@ public class NB_P2_AGENT_ALMIRALL {
     public static void main(String[] args) {
         ConsoleBoot app = new ConsoleBoot("AGENT-P1", args);
         app.selectConnection();
-        app.launchAgent("ALMIRALL", AgentP2.class);
+        app.launchAgent("ALMIRALL1", AgentP2.class);
         app.shutDown();
     }
 

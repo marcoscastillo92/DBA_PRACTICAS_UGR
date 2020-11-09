@@ -8,10 +8,18 @@ import ControlPanel.TTYControlPanel;
 import static java.lang.Math.abs;
 import java.util.ArrayList;
 
+/**
+ * Estados posibles en los que el agente se puede encontrar
+ * @author Marcos
+ */
 enum Status {
     LOGIN, NEEDS_INFO, HAS_ACTIONS, PLANNING, LOGOUT
 }
 
+/**
+ * Agente para la práctica 2
+ * @author Marcos, Luis, Diego y Juan Pablo
+ */
 public class AgentP2 extends IntegratedAgent {
     String receiver;
     TTYControlPanel myControlPanel;
@@ -20,7 +28,7 @@ public class AgentP2 extends IntegratedAgent {
     int width, height, maxflight;
     JsonArray options;
     JsonArray sensors;
-    String world = "World6";
+    String world = "Link@Playground1";
     String[] sensores = { "alive", "ontarget", "compass", "angular", "distance", "visual", "gps" };
     // General use variables
     JsonArray perceptions;
@@ -28,7 +36,6 @@ public class AgentP2 extends IntegratedAgent {
     ACLMessage current;
     ArrayList<String> actions;
     boolean needsNewActionPlan;
-    private boolean needsInfo;
     // Control variables
     int energy, xVisualAuxActualPos, yVisualAuxActualPos, xVisualPosActual, yVisualPosActual;
     boolean aliveSensor;
@@ -44,13 +51,11 @@ public class AgentP2 extends IntegratedAgent {
     ArrayList<String> nextActions;
     JsonArray perceptionsAuxiliar;
     boolean onTarget;
-    boolean esquivando;
-    private boolean borderOfMap;
-    boolean pathMap[][];
+    boolean dodging;
 
     /**
      * Inicializa los sensores del agente, el panel de control, la conexión con LARVA y variables necesarias para su funcionamiento
-     * @author 
+     * @author Marcos
      */
     @Override
     public void setup() {
@@ -67,10 +72,9 @@ public class AgentP2 extends IntegratedAgent {
         this.myControlPanel = new TTYControlPanel(getAID());
         this.status = Status.LOGIN;
         this.needsNewActionPlan = false;
-        this.needsInfo = true;
         this.energy = 1000;
         this.onTarget = false;
-        this.esquivando = false;
+        this.dodging = false;
         this.perceptionsAuxiliar = new JsonArray();
         this._exitRequested = false;        
     }
@@ -82,7 +86,7 @@ public class AgentP2 extends IntegratedAgent {
      * Estado HAS_ACTIONS - Si tiene un plan de acciones, las ejecuta. Si se queda sin plan, pasa a estado PLANNING.
      * Estado PLANNING - Se crea un plan de acciones para el agente. Si el plan de acciones está vacío o el agente está en el objetivo pasa a estado NEEDS_INFO, si no pasa a HAS_ACTIONS.
      * Estado LOGOUT - El agente manda un mensaje de LOGOUT al servidor y se desconecta.
-     * @author 
+     * @author Marcos
      */
     @Override
     public void plainExecute() {
@@ -93,7 +97,6 @@ public class AgentP2 extends IntegratedAgent {
                 break;
             case NEEDS_INFO:
                 this.current = this.readSensors(this.current);
-                this.needsInfo = false;
                 if(this.objectiveReached() && this.isLanded()){
                     this.status = Status.LOGOUT;
                 }else{
@@ -136,7 +139,7 @@ public class AgentP2 extends IntegratedAgent {
 
     /**
      * Manda un mensaje de log out al servidor LARVA
-     * @author 
+     * @author Marcos
      */
     @Override
     protected void takeDown() {
@@ -149,7 +152,7 @@ public class AgentP2 extends IntegratedAgent {
 
     /**
      * Genera el mensaje de login al servidor, el mundo que va a explorar el agente y los sensores que va a utilizar.
-     * @author 
+     * @author Marcos
      * @param world nombre del mundo que va a explorar el agente.
      * @param sensores lista de sensores que va a usar el agente.
      * @return el mensaje completo para el servidor.
@@ -174,7 +177,7 @@ public class AgentP2 extends IntegratedAgent {
 
     /**
      * Manda un mensaje a receiver con el contenido de body.
-     * @author 
+     * @author Marcos
      * @param receiver nombre de quien recibe el mensaje
      * @param body contenido del mensaje
      */
@@ -188,7 +191,7 @@ public class AgentP2 extends IntegratedAgent {
 
     /**
      * Recibe el mensaje de login y lo parsea, obteniendo la clave, la anchura y altura del mapa, la altura máxima a la que puede volar el agente y las acciones que puede realizar.
-     * @author 
+     * @author Marcos
      * @return el mensaje completo de login
      */
     private ACLMessage retrieveLoginMessage() {
@@ -200,20 +203,13 @@ public class AgentP2 extends IntegratedAgent {
         this.maxflight = this.getIntContent(in, "maxflight");
         System.out.println("ALTURA MAXIMA "+this.maxflight);
         this.options = this.getJsonArrayContent(in, "capabilities");
-        this.pathMap = new boolean[width][height];
-
-        for (int i = 0; i < width; i++) {
-            for (int j = 0; j < height; j++) {
-                this.pathMap[i][j] = false;
-            }
-        }
 
         return in;
     }
 
     /**
      * Manda el mensaje de login y recibe la respuesta (contiene toda la información de {@link #retrieveLoginMessage})
-     * @author 
+     * @author Marcos
      * @return mensaje de respuesta al login
      */
     private ACLMessage makeLogin() {
@@ -224,7 +220,7 @@ public class AgentP2 extends IntegratedAgent {
 
     /**
      * Hace una petición para leer los sensores
-     * @author 
+     * @author Marcos
      * @param in cabecera del mensaje
      * @return información de los sensores
      */
@@ -250,7 +246,7 @@ public class AgentP2 extends IntegratedAgent {
 
     /**
      * Manda un mensaje con la siguiente acción a realizar
-     * @author
+     * @author Marcos
      * @param msg cabecera del mensaje
      * @param action acción a realizar
      */
@@ -264,7 +260,7 @@ public class AgentP2 extends IntegratedAgent {
 
     /**
      * Manda un mensaje de respuesta al servidor
-     * @author
+     * @author Marcos
      * @param in cabecera del mensaje
      * @param content contenido del mensaje
      */
@@ -278,7 +274,7 @@ public class AgentP2 extends IntegratedAgent {
 
     /**
      * Recibe el mensaje de respuesta del servidor
-     * @author
+     * @author Marcos
      * @return devuelve la respuesta si result == ok, si no devuelve un null
      */
     public ACLMessage retrieveMessage() {
@@ -293,7 +289,7 @@ public class AgentP2 extends IntegratedAgent {
 
     /**
      * Obtiene la información del campo elegido del mensaje como String
-     * @author
+     * @author Marcos
      * @param msg mensaje a parsear
      * @param field campo buscado
      * @return contenido del campo como String
@@ -305,7 +301,7 @@ public class AgentP2 extends IntegratedAgent {
 
     /**
      * Obtiene la información del campo elegido del mensaje como JsonObject
-     * @author
+     * @author Marcos
      * @param msg mensaje a parsear
      * @param field campo buscado
      * @return contenido del campo como JsonObject
@@ -317,7 +313,7 @@ public class AgentP2 extends IntegratedAgent {
 
     /**
      * Obtiene la información del mensaje como JsonObject
-     * @author
+     * @author Marcos
      * @param msg mensaje a parsear
      * @return contenido del mensaje como JsonObject
      */
@@ -328,7 +324,7 @@ public class AgentP2 extends IntegratedAgent {
 
     /**
      * Obtiene la información del campo elegido del mensaje como int
-     * @author
+     * @author Marcos
      * @param msg mensaje a parsear
      * @param field campo buscado
      * @return contenido del campo como int
@@ -340,7 +336,7 @@ public class AgentP2 extends IntegratedAgent {
 
     /**
      * Obtiene la información del campo elegido del mensaje como array
-     * @author
+     * @author Marcos
      * @param msg mensaje a parsear
      * @param field campo buscado
      * @return contenido del campo como array
@@ -363,7 +359,7 @@ public class AgentP2 extends IntegratedAgent {
 
     /**
      * Elimina la primera acción del plan de acciones
-     * @author
+     * @author Marcos
      */
     private void removeFirstAction() {
             if(this.actions.size() > 1){
@@ -376,7 +372,7 @@ public class AgentP2 extends IntegratedAgent {
 
     /**
      * Añade una acción al plan de acciones
-     * @author
+     * @author Marcos
      * @param action acción a añadir
      */
     private void addAction(String action) {
@@ -384,17 +380,8 @@ public class AgentP2 extends IntegratedAgent {
     }
 
     /**
-     * Comprueba si el plan de acciones está vacío o no
-     * @author
-     * @return true si tiene acciones, false si está vacío
-     */
-    private boolean hasActions() {
-        return !this.actions.isEmpty();
-    }
-
-    /**
      * Muestra la información en un panel de control
-     * @author
+     * @author Marcos
      * @param in mensaje con la información de los sensores
      */
     private void showInfo(ACLMessage in) {
@@ -453,7 +440,7 @@ public class AgentP2 extends IntegratedAgent {
     
     /**
      * Actualiza la información local de los sensores y el agente
-     * @author
+     * @author Marcos
      */
     private void updateSensorsInfo(){
         this.xVisualPosActual = 3;
@@ -536,78 +523,103 @@ public class AgentP2 extends IntegratedAgent {
     }
 
     /**
+     * Comprueba si la casilla a la que vamos a rotar es mayor a la altura maxima
+     * @author Luis y Diego
+     * @param direction direccion a girar
+     * @return true si se puede rotar
+     */
+    private boolean canRotate(String direction) {
+        boolean canRotate = true;
+
+        int [] nextPos = this.getNextVisualPos(this.xVisualPosActual, this.yVisualPosActual, this.whereIsGoingToLook(direction));
+
+        if(this.isInVisual(nextPos[0], nextPos[1])) {
+            if(this.visualSensor.get(nextPos[1]).get(nextPos[0]) >= this.maxflight) {
+                canRotate = false;
+            }
+        }
+        
+        return canRotate;
+    }
+    
+    /**
+     * Intenta esquivar segun la direccion
+     * @author Luis y Diego
+     */
+    private void tryDodge(String direction) {
+        nextActions.add(direction);
+        if(this.canMoveFAfterRotate(direction)) {
+            nextActions.add("moveF");
+            this.dodging = false;
+        }
+    }
+    
+    /**
+     * Realiza la planificación de las esquivas del agente
+     * @author Luis y Diego
+     */
+    private void dodge() {
+        System.out.println("ESQUIVAR");
+        boolean canRotateR = this.canRotate("rotateR");
+        boolean canRotateL = this.canRotate("rotateL");
+        
+        //Comprobar a donde gira
+        if (canRotateR && canRotateL) {
+            this.tryDodge("rotateR");
+        }
+        else{
+            if (canRotateL && !canRotateR){
+                this.tryDodge("rotateL");
+            }
+            if (canRotateR && !canRotateL){
+                this.tryDodge("rotateR");
+            }
+            if (!canRotateL && !canRotateR){
+                nextActions.add("rotateL");
+            }
+        }
+
+        for(String action: nextActions){
+            this.updateActualInfo(action);
+        }
+    }
+    
+    /**
+     * Comprueba si la casilla esta dentro de la malla del visual
+     * @author Diego
+     * @return true si esta dentro de la malla 7x7 del visual
+     */
+    private boolean isInVisual(int x, int y) {
+        return x < 7 && x >= 0 && y < 7 && y >= 0;
+    }
+    
+    /**
+     * Comprueba si la casilla es frontera
+     * @author Diego
+     * @return true si es frontera
+     */
+    private boolean isNotFrontier(int x, int y) {
+        return this.visualSensor.get(y).get(x) >= 0;
+    }
+    
+    /**
      * Contiene toda la lógica de planificación de movimientos teniendo en cuenta el entorno
-     * @author
+     * @author Marcos, Luis, Diego y Juan Pablo
      */
     private void createStrategy() {
-        // orientarse, crear secuencia de acciones y añadirlas a this.actions
         nextActions.clear();
         int count = 0;
         //Si no tengo suficiente energia voy al suelo y recargo
         if(!this.hasEnoughEnergy()) {
             nextActions = this.landAgent();
             nextActions.add("recharge");
-            System.out.println("VA A BAJAR CON "+nextActions.size()+" MOVIMIENTOS");
             this.updateActualInfo("recharge");
         }
         //Si tengo suficiente energia
         else {
             //Si esta esquivando
-            if(this.esquivando) {
-                System.out.println("ESQUIVAR");
-                boolean canRotateR = true;
-                int [] visualPosR = this.getNextVisualPos(this.xVisualPosActual, this.yVisualPosActual, this.whereIsGoingToLook("rotateR"));
-                
-                if(visualPosR[0] < 7 && visualPosR[0] >= 0 && visualPosR[1] < 7 && visualPosR[1] >= 0) {
-                    //int [] nextPos = this.getNextPos(this.gpsActual.get(0), this.gpsActual.get(1), this.whereIsGoingToLook("rotateR"));
-                    if(this.visualSensor.get(visualPosR[1]).get(visualPosR[0]) >= this.maxflight) {
-                        canRotateR = false;
-                    }
-                }
-                
-                boolean canRotateL = true;
-                int [] visualPosL = this.getNextVisualPos(this.xVisualPosActual, this.yVisualPosActual, this.whereIsGoingToLook("rotateL"));
-                
-                if(visualPosL[0] < 7 && visualPosL[0] >= 0 && visualPosL[1] < 7 && visualPosL[1] >= 0) {
-                    if(this.visualSensor.get(visualPosL[1]).get(visualPosL[0]) >= this.maxflight) {
-                        canRotateL = false;
-                    }
-                }
-                
-                //Comprobar a donde gira
-                if (canRotateR && canRotateL) {
-                    nextActions.add("rotateR");
-                    if(this.canExecuteNextAction("rotateR")) {
-                        nextActions.add("moveF");
-                    }
-                    
-                    this.esquivando = false;
-                }
-                else{
-                    if (canRotateL && !canRotateR){
-                        nextActions.add("rotateL");
-                        if(this.canExecuteNextAction("rotateL")) {
-                            nextActions.add("moveF");
-                        }
-
-                        this.esquivando = false;
-                    }
-                    if (canRotateR && !canRotateL){
-                        nextActions.add("rotateR");
-                        if(this.canExecuteNextAction("rotateR")) {
-                            nextActions.add("moveF");
-                        }
-
-                        this.esquivando = false;
-                    }
-                    if (!canRotateL && !canRotateR){
-                        nextActions.add("rotateR");
-                    }
-                }
-
-                for(String action: nextActions){
-                    this.updateActualInfo(action);
-                }
+            if(this.dodging) {
+                this.dodge();
             }
             else {
                 //Si no he encontrado el objetivo
@@ -615,54 +627,47 @@ public class AgentP2 extends IntegratedAgent {
                     nextActions = this.orientate(this.angularSensor);
                     int [] visualNextPos = this.getNextVisualPos(this.xVisualPosActual, this.yVisualPosActual, this.whereIsLooking());
                     //Si la siguiente casilla esta dentro de la malla de visual
-                    if(visualNextPos[0] < 7 && visualNextPos[0] >= 0 && visualNextPos[1] < 7 && visualNextPos[1] >= 0){
+                    if(this.isInVisual(visualNextPos[0], visualNextPos[1])) {
                         //Si la siguiente casilla no se sale del mapa
-                        if(this.visualSensor.get(visualNextPos[1]).get(visualNextPos[0]) >= 0){
+                        if(this.isNotFrontier(visualNextPos[0], visualNextPos[1])) {
                             int z = this.gpsActual.get(2);
-                            
+                            //Si la altura subiendo es mayor o igual que la altura maxima y no podemos avanzar
                             if((z+5) >= this.maxflight && !this.canExecuteNextAction("moveF")) {
-                                System.out.println("Voy a esquivar");
-                                this.esquivando = true;
+                                this.dodging = true;
                             }
                             //Si la altura del dron es menor que la siguiente casilla
                             else if(z < this.visualSensor.get(visualNextPos[1]).get(visualNextPos[0])) {
                                 //Mientras no pueda avanzar y mi altura+5 sea menor que la maxima, asciendo
-                                while(!this.canExecuteNextAction("moveF") && (z+5) < this.maxflight && count < 3) {
-                                    System.out.println("QUIERE SUBIR : Altura->"+ z);
+                                while(!this.canExecuteNextAction("moveF") && (z+5) < this.maxflight) {
                                     nextActions.add("moveUP");
                                     this.updateActualInfo("moveUP");
-                                    count++;
                                 }
                             }
                             //Si la altura de la siguiente casilla es igual o menor, avanzo
                             else {
-                                while(count < 3) {
+                                // Si puedo avanzar y la distancia con el objetivo es mayor o igual que 1
+                                while(this.canExecuteNextAction("moveF") && this.distanceActual >= 1 && count < 3) {
+                                    nextActions.add("moveF");
+                                    this.updateActualInfo("moveF");
                                     count++;
-                                    // Si puedo avanzar y la distancia con el objetivo es mayor o igual que 1
-                                    if(this.canExecuteNextAction("moveF") && this.distanceActual >= 1) {
-                                        nextActions.add("moveF");
-                                        this.updateActualInfo("moveF");
-                                        this.pathMap[this.gpsActual.get(0)][this.gpsActual.get(1)] = true;
-                                    }
                                 }
                             }
-                            count = 0;
                         }
                     }
                 }
                 //Si he encontrado el objetivo, bajo
-                else if(!this.isLanded()){
+                else if(!this.isLanded()) {
                     nextActions = this.landAgent();
                 }
                 
                 //Si no tengo acciones en el plan, necesito informacion
-                if(nextActions.isEmpty()){
+                if(nextActions.isEmpty()) {
                     this.status = Status.NEEDS_INFO;
                 }
             } 
         }
 
-        for(String action: nextActions){
+        for(String action: nextActions) {
             this.addAction(action);
             //System.out.println("Acción añadida: " + action);
         }
@@ -670,7 +675,7 @@ public class AgentP2 extends IntegratedAgent {
     
     /**
      * Aterrizaje del agente
-     * @author
+     * @author Marcos
      * @return plan de acciones para aterrizar al agente
      */
     private ArrayList<String> landAgent() {
@@ -690,7 +695,7 @@ public class AgentP2 extends IntegratedAgent {
 
     /**
      * Comprueba si se ha llegado al objetivo
-     * @author
+     * @author Marcos
      * @return true si se encuentra en el objetivo o está a menos de 1 de distancia, false en otro caso
      */
     private boolean objectiveReached() {
@@ -699,7 +704,7 @@ public class AgentP2 extends IntegratedAgent {
 
     /**
      * Comprueba si el agente se encuentra en tierra
-     * @author
+     * @author Marcos
      * @return true si la altura entre el agente y el suelo es menor o igual a 0, false en otro caso
      */
     private boolean isLanded() {
@@ -709,7 +714,7 @@ public class AgentP2 extends IntegratedAgent {
     /**
      * Determina si el agente está en el límite de la información del lidar
      * de frente
-     * @author
+     * @author Marcos
      * @return true si el gps detecta out of bounds en el lidar, false si no
      */
     private boolean isLookingOutOfFrontier(){
@@ -726,7 +731,7 @@ public class AgentP2 extends IntegratedAgent {
     
     /**
      * Devuelve en String hacia donde está encarado el agente
-     * @author
+     * @author Marcos
      * @return dirección a la que mira el agente
      */
     private String whereIsLooking(){
@@ -762,7 +767,7 @@ public class AgentP2 extends IntegratedAgent {
 
     /**
      * Devuelve la dirección a la que va a mirar el agente después de una rotación
-     * @author
+     * @author Luis y Diego
      * @param direction sentido en el que tiene que rotar el agente
      * @return dirección a la que acaba mirando
      */
@@ -831,8 +836,41 @@ public class AgentP2 extends IntegratedAgent {
     }
 
     /**
+     * Indica si se puede avanzar despues de realizar un giro a la izquierda o a la dereda
+     * @author Luis y Diego
+     * @param direction sentido en el que tiene que rotar el agente
+     * @return true si se puede avanzar despues de realizar el giro direction
+     */
+    private boolean canMoveFAfterRotate(String direction) {
+        boolean canExecute = false;
+        int z = this.gpsActual.get(2);
+        //Si no estoy mirando a la forntera
+        if(!this.isLookingOutOfFrontier()){
+            int [] visualNextPos = this.getNextVisualPos(this.xVisualPosActual, this.yVisualPosActual, this.whereIsGoingToLook(direction));
+            //Si la siguiente casilla esta dentro de la malla del visual
+            if(this.isInVisual(visualNextPos[0], visualNextPos[1])){
+                //Si la siguiente casilla no esta fuera del mapa
+                if(this.isNotFrontier(visualNextPos[0], visualNextPos[1])){
+                    //puedo ejecutar accion si mi altura es mayor o igual que la altura de la siguiente casilla
+                    canExecute = z >= this.visualSensor.get(visualNextPos[1]).get(visualNextPos[0]);
+                    if(canExecute){
+                        this.xVisualPosActual = this.xVisualAuxActualPos;
+                        this.yVisualPosActual = this.yVisualAuxActualPos;
+                    }
+                }else{
+                    canExecute = false;
+                }
+            }else{
+                canExecute = false;
+            }
+        }
+        
+        return canExecute;
+    }
+    
+    /**
      * Indica si se puede o no ejecutar la siguiente acción con las actuales condiciones e información
-     * @author
+     * @author Marcos
      * @param nextAction siguiente acción del plan
      * @return true si puede realizar la acción, false en otro caso
      */
@@ -849,7 +887,7 @@ public class AgentP2 extends IntegratedAgent {
                 if(!this.isLookingOutOfFrontier()){
                     int [] visualNextPos = this.getNextVisualPos(this.xVisualPosActual, this.yVisualPosActual, this.whereIsLooking());
                     //Si la siguiente casilla esta dentro de la malla del visual
-                    if(visualNextPos[0] < 7 && visualNextPos[0] >= 0 && visualNextPos[1] < 7 && visualNextPos[1] >= 0){
+                    if(this.isInVisual(visualNextPos[0], visualNextPos[1])){
                         //Si la siguiente casilla no esta fuera del mapa
                         if(this.visualSensor.get(visualNextPos[1]).get(visualNextPos[0]) >= 0){
                             //puedo ejecutar accion si mi altura es mayor o igual que la altura de la siguiente casilla
@@ -867,48 +905,8 @@ public class AgentP2 extends IntegratedAgent {
                 }
                 break;
             case "rotateL":
-                //Si no estoy mirando a la forntera
-                if(!this.isLookingOutOfFrontier()){
-                    int [] visualNextPos = this.getNextVisualPos(this.xVisualPosActual, this.yVisualPosActual, this.whereIsGoingToLook("rotateL"));
-                    //Si la siguiente casilla esta dentro de la malla del visual
-                    if(visualNextPos[0] < 7 && visualNextPos[0] >= 0 && visualNextPos[1] < 7 && visualNextPos[1] >= 0){
-                        //Si la siguiente casilla no esta fuera del mapa
-                        if(this.visualSensor.get(visualNextPos[1]).get(visualNextPos[0]) >= 0){
-                            //puedo ejecutar accion si mi altura es mayor o igual que la altura de la siguiente casilla
-                            canExecute = z >= this.visualSensor.get(visualNextPos[1]).get(visualNextPos[0]);
-                            if(canExecute){
-                                this.xVisualPosActual = this.xVisualAuxActualPos;
-                                this.yVisualPosActual = this.yVisualAuxActualPos;
-                            }
-                        }else{
-                            canExecute = false;
-                        }
-                    }else{
-                        canExecute = false;
-                    }
-                }
-                break;
             case "rotateR":
-                //Si no estoy mirando a la forntera
-                if(!this.isLookingOutOfFrontier()){
-                    int [] visualNextPos = this.getNextVisualPos(this.xVisualPosActual, this.yVisualPosActual, this.whereIsGoingToLook("rotateR"));
-                    //Si la siguiente casilla esta dentro de la malla del visual
-                    if(visualNextPos[0] < 7 && visualNextPos[0] >= 0 && visualNextPos[1] < 7 && visualNextPos[1] >= 0){
-                        //Si la siguiente casilla no esta fuera del mapa
-                        if(this.visualSensor.get(visualNextPos[1]).get(visualNextPos[0]) >= 0){
-                            //puedo ejecutar accion si mi altura es mayor o igual que la altura de la siguiente casilla
-                            canExecute = z >= this.visualSensor.get(visualNextPos[1]).get(visualNextPos[0]);
-                            if(canExecute){
-                                this.xVisualPosActual = this.xVisualAuxActualPos;
-                                this.yVisualPosActual = this.yVisualAuxActualPos;
-                            }
-                        }else{
-                            canExecute = false;
-                        }
-                    }else{
-                        canExecute = false;
-                    }
-                }
+                canExecute = true;
                 break;
             case "touchD":
                 if((z - this.visualSensor.get(this.xVisualPosActual).get(this.yVisualPosActual)) <= 5){
@@ -937,20 +935,8 @@ public class AgentP2 extends IntegratedAgent {
     }
 
     /**
-     * Determina si tiene suficiente información para planificar y si no setea el estado para leer sensores
-     * @return true si no le hace falta más información, false si sí
-     */
-    private boolean hasEnoughtInfo() {
-        // determinar si se tiene suficiente información para elaborar un plan o no
-        // Si está mirando hacia un borde del lidar no tiene info suficiente.
-        boolean response = this.isLookingOutOfFrontier();
-        this.needsInfo = response;
-        return !response; 
-    }
-
-    /**
      * Comprueba que el dron tiene suficiente energía para continuar o debe aterrizar para recargar
-     * @author
+     * @author Juan Pablo
      * @return true si no hace falta que recarge, false si sí
      */
     private boolean hasEnoughEnergy() {
@@ -970,7 +956,7 @@ public class AgentP2 extends IntegratedAgent {
 
     /**
      * Actualiza la energía restante del dron
-     * @author
+     * @author Marcos
      * @param action acción que gasta/recarga energía
      */
     private void setEnergy(String action) {
@@ -998,7 +984,7 @@ public class AgentP2 extends IntegratedAgent {
 
     /**
      * Actualiza cual sería la siguiente posición del lidar si avanzamos con la orientación actual
-     * @author
+     * @author Marcos
      * @param posX coordenada x actual del agente
      * @param posY coordenada y actual del agente
      * @param lookingAt dirección en la que está mirando el agente
@@ -1010,11 +996,18 @@ public class AgentP2 extends IntegratedAgent {
         this.xVisualAuxActualPos = nextPos[0];
         this.yVisualAuxActualPos = nextPos[1];
         
-        //if(this.yVisualAuxActualPos < 7 && this.xVisualAuxActualPos < 7)
-            //System.out.println("Obtiene el siguiente visual position que es x: "+this.yVisualAuxActualPos+"; y: "+this.xVisualAuxActualPos+" y el visual es: "+this.visualSensor.get(this.yVisualAuxActualPos).get(this.xVisualAuxActualPos));
+        //System.out.println("Obtiene el siguiente visual position que es x: "+this.yVisualAuxActualPos+"; y: "+this.xVisualAuxActualPos+" y el visual es: "+this.visualSensor.get(this.yVisualAuxActualPos).get(this.xVisualAuxActualPos));
         return nextPos;
     }
-
+    
+    /**
+     * Calcula la siguiente posicion segun las coordenadas y orientacion
+     * @author Diego
+     * @param posX posicion x del agente
+     * @param posY posicion y del agente
+     * @param lookingAt orientacion
+     * @return vector con las coordenadas x e y tras avanzar
+     */
     private int[] getNextPos(int posX, int posY, String lookingAt) {
         int x = 0;
         int y = 0;
@@ -1022,35 +1015,35 @@ public class AgentP2 extends IntegratedAgent {
         switch(lookingAt){
             case "N":
                 x = posX;
-                y = --posY;
+                y = posY-1;
                 break;
             case "NE":
-                x = ++posX;
-                y = --posY;
+                x = posX+1;
+                y = posY-1;
                 break;
             case "E":
-                x = ++posX;
+                x = posX+1;
                 y = posY;
                 break;
             case "SE":
-                x = ++posX;
-                y = ++posY;
+                x = posX+1;
+                y = posY+1;
                 break;
             case "S":
                 x = posX;
-                y = ++posY;
+                y = posY+1;
                 break;
             case "NW":
-                x = --posX;
-                y = --posY;
+                x = posX-1;
+                y = posY-1;
                 break;
             case "W":
-                x = --posX;
+                x = posX-1;
                 y = posY;
                 break;
             case "SW":
-                x = --posX;
-                y = ++posY;
+                x = posX-1;
+                y = posY+1;
                 break;
         }
 
@@ -1059,6 +1052,7 @@ public class AgentP2 extends IntegratedAgent {
 
     /**
      * Actualiza la información de los sensores locales para poder planificar varios movimientos
+     * @author Marcos
      * @param action última acción realizada
      */
     private void updateActualInfo(String action) {
@@ -1103,7 +1097,7 @@ public class AgentP2 extends IntegratedAgent {
     
     /**
      * Muestra información sobre el agente por consola
-     * @author
+     * @author Marcos
      */
     private void showTrackingInfo(){
         String gps_msg = "GPS Actual: [" + this.gpsActual.get(0) + ", " + this.gpsActual.get(1) + ", " + this.gpsActual.get(2) + "] \n" + "GPS Sensores: [" + this.gpsSensor.get(0) + ", " + this.gpsSensor.get(1) + ", " + this.gpsSensor.get(2) + "] \n";
@@ -1127,7 +1121,7 @@ public class AgentP2 extends IntegratedAgent {
 
     /**
      * Actualiza la posición en el GPS según se haya movido y estuviese mirando, se llama cuando se hace un moveF solo
-     * @author
+     * @author Marcos
      */
     private void setActualGPS() {
         String lookingAt = this.whereIsLooking();
@@ -1165,7 +1159,7 @@ public class AgentP2 extends IntegratedAgent {
 
     /**
      * Actualiza la distancia al objetivo según se haya movido y estuviese mirando, solo se llama con moveF
-     * @author
+     * @author Marcos
      */
     private void setActualDistance() {
         if(this.angularActual == this.compassActual){
