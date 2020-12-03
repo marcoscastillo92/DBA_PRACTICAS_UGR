@@ -1,4 +1,4 @@
-package larva_hackathon;
+package NB_P3_AGENTS;
 
 import IntegratedAgent.IntegratedAgent;
 import jade.core.AID;
@@ -6,17 +6,21 @@ import com.eclipsesource.json.*;
 import jade.lang.acl.ACLMessage;
 import YellowPages.YellowPages;
 import java.util.ArrayList;
+import DBAMap.DBAMap;
+import java.io.IOException;
 
 public class Agent extends IntegratedAgent{
-    public int minValue, maxValue, middleValue;
     public boolean endSession, logged, playing, susbscribed;
-    public String service, worldManager, conversationID, replyWith;
+    public String service, worldManager, conversationID, replyWith, id_problema;
     ACLMessage out, in;
     YellowPages yp;
+    DBAMap map;
     
     @Override
     public void setup(){
         super.setup();
+        map = new DBAMap();
+        id_problema = "";
         service = "Group Almirall";
         playing = false;
         susbscribed = false;
@@ -86,23 +90,37 @@ public class Agent extends IntegratedAgent{
         out.setContent("");
         this.send(out);
         in = this.blockingReceive(2000);
-        this.doExit();
+        if(in.getPerformative() == ACLMessage.INFORM){
+            this.doExit();
+        }
     }
 
     public boolean subscribeToWorldManager() {
+        JsonObject subscribe_world;
+        // Generate JSON body
+        subscribe_world = new JsonObject();
+        subscribe_world.add("problem", id_problema);
         out = new ACLMessage();
         out.setSender(getAID());
         out.addReceiver(new AID(worldManager, AID.ISLOCALNAME));
         out.setProtocol("ANALYTICS");
-        out.setContent("");
+        out.setContent(subscribe_world.asString());
         out.setEncoding(_myCardID.getCardID());
         out.setPerformative(ACLMessage.SUBSCRIBE);
         this.send(out);
         in = this.blockingReceive(2000);
-        System.out.println("RESPUESTA SUSCRIPCION AGENTE: "+in);
+        System.out.println("RESPUESTA SUSCRIPCION WorldManager: "+in);
         if(in.getPerformative() == ACLMessage.CONFIRM || in.getPerformative() == ACLMessage.INFORM){
             conversationID = in.getConversationId();
             replyWith = in.getReplyWith();
+            //Obtener el mapa en el mensaje y asignarlo al DBAMap de la clase
+            JsonObject replyObj = new JsonObject(Json.parse(in.getContent()).asObject());
+            JsonArray map_info = new JsonArray(replyObj.get("map").asArray());
+            try{
+                map.fromJson(map_info);
+            }catch(IOException e){
+                System.out.println("Excepción al cargar mapa: "+e);
+            }
             susbscribed = true;
             return true;
         }else{
