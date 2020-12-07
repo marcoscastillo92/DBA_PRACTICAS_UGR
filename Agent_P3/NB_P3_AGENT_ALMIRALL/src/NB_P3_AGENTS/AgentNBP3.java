@@ -3,7 +3,7 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package larva_hackathon;
+package NB_P3_AGENTS;
 
 import AppBoot.ConsoleBoot;
 
@@ -13,7 +13,7 @@ public class AgentNBP3 {
         ConsoleBoot app = new ConsoleBoot("HACKATHON", args);
         app.selectConnection();
         
-        app.launchAgent("MarcosCastillo", Agent.class);
+        app.launchAgent("MarcosCastillo", Listener.class);
         app.shutDown();        
     }
     
