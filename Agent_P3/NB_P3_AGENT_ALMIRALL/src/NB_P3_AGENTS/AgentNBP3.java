@@ -10,10 +10,10 @@ import AppBoot.ConsoleBoot;
 public class AgentNBP3 {
 
     public static void main(String[] args) {
-        ConsoleBoot app = new ConsoleBoot("HACKATHON", args);
+        ConsoleBoot app = new ConsoleBoot("P3", args);
         app.selectConnection();
         
-        app.launchAgent("MarcosCastillo", Listener.class);
+        app.launchAgent("AlmirallP3", Listener.class);
         app.shutDown();        
     }
     
