@@ -10,7 +10,7 @@ import DBAMap.DBAMap;
 import java.io.IOException;
 
 enum Status {
-    CHECKIN_LARVA, SUBSCRIBE_WM, LISTENNING, PLANNING, CANCEL_WM, CHECKOUT_LARVA, EXIT
+    CHECKIN_LARVA, SUBSCRIBE_WM, SUBSCRIBE_TYPE, LISTENNING, PLANNING, CANCEL_WM, CHECKOUT_LARVA, EXIT
 }
 
 public class Listener extends IntegratedAgent{
@@ -19,6 +19,7 @@ public class Listener extends IntegratedAgent{
     YellowPages yp;
     DBAMap map;
     Status status;
+    int tries;
     
     @Override
     public void setup(){
@@ -28,6 +29,7 @@ public class Listener extends IntegratedAgent{
         _identitymanager = "Sphinx";
         _exitRequested = false;
         status = Status.CHECKIN_LARVA;
+        tries = 0;
     }
     
     @Override
@@ -38,6 +40,9 @@ public class Listener extends IntegratedAgent{
                 break;
             case SUBSCRIBE_WM:
                 this.subscribeToWorldManager();
+                break;
+            case SUBSCRIBE_TYPE:
+                this.subscribeByType("LISTENER");
                 break;
             case LISTENNING:
                 status = Status.PLANNING;
@@ -68,7 +73,7 @@ public class Listener extends IntegratedAgent{
         out.setEncoding(_myCardID.getCardID());
         out.setPerformative(ACLMessage.SUBSCRIBE);
         this.send(out);
-        in = this.blockingReceive(2000);
+        in = this.blockingReceive(10000);
         System.out.println("RESPUESTA CHECKIN: "+in);
         if(in.getPerformative() == ACLMessage.CONFIRM || in.getPerformative() == ACLMessage.INFORM){
             Info("Checkin confirmed in the platform");
@@ -87,7 +92,7 @@ public class Listener extends IntegratedAgent{
         out.setPerformative(ACLMessage.QUERY_REF);
         out.setContent("");
         this.send(out);
-        in = this.blockingReceive(2000);
+        in = this.blockingReceive(10000);
         yp = new YellowPages();
         yp.updateYellowPages(in);
         System.out.println("YellowPages: "+yp.prettyPrint());
@@ -111,7 +116,7 @@ public class Listener extends IntegratedAgent{
         out.setInReplyTo(replyWith);
         out.setConversationId(conversationID);
         this.send(out);
-        in = this.blockingReceive(2000);
+        in = this.blockingReceive(10000);
         if(in.getPerformative() == ACLMessage.INFORM){
             //this.doExit();
             status = Status.EXIT;
@@ -128,7 +133,7 @@ public class Listener extends IntegratedAgent{
         out.setEncoding(_myCardID.getCardID());
         out.setPerformative(ACLMessage.SUBSCRIBE);
         this.send(out);
-        in = this.blockingReceive(2000);
+        in = this.blockingReceive(10000);
         System.out.println("RESPUESTA SUSCRIPCION WorldManager: "+in);
         if(in != null){
             if(in.getPerformative() == ACLMessage.CONFIRM || in.getPerformative() == ACLMessage.INFORM){
@@ -153,7 +158,7 @@ public class Listener extends IntegratedAgent{
                         status = Status.CHECKOUT_LARVA;
                         return null;
                     }
-                    in = this.subscribeByType("LISTENER");
+                    status = Status.SUBSCRIBE_TYPE;
                 }else{
                     System.out.println("Error 2 no se ha obtenido el mapa en la subscripción: " + replyObj.toString());
                 }
@@ -175,15 +180,23 @@ public class Listener extends IntegratedAgent{
         out.setConversationId(conversationID);
         out.setContent(subscribe_type);
         this.send(out);
-        in = this.blockingReceive(2000);
+        ACLMessage reply = this.blockingReceive(10000);
         System.out.println("RESPUESTA SUSCRIPCION AGENTE: "+in);
-        if(in.getPerformative() == ACLMessage.AGREE){
-            conversationID = in.getConversationId();
-            replyWith = in.getReplyWith();
-            status = Status.LISTENNING;
-        }else{
-            System.out.println("No se ha podido empezar partida, se deberá solicitar de nuevo");
+        if(reply != null){
+            in = reply;
+            if(in.getPerformative() == ACLMessage.AGREE){
+                conversationID = in.getConversationId();
+                replyWith = in.getReplyWith();
+                status = Status.LISTENNING;
+            }else{
+                System.out.println("No se ha podido empezar partida, se deberá solicitar de nuevo");
+                //status = Status.CHECKOUT_LARVA;
+            }
+        }
+        if(tries == 3){
             status = Status.CHECKOUT_LARVA;
+        }else{
+            tries++;
         }
         return in;
     }
