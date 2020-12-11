@@ -184,13 +184,13 @@ public class Listener extends IntegratedAgent{
         System.out.println("RESPUESTA SUSCRIPCION AGENTE: "+reply);
         if(reply != null){
             in = reply;
-            if(in.getPerformative() == ACLMessage.AGREE){
+            if(in.getPerformative() == ACLMessage.INFORM){
                 conversationID = in.getConversationId();
                 replyWith = in.getReplyWith();
                 status = Status.LISTENNING;
             }else{
                 System.out.println("No se ha podido empezar partida, se deberá solicitar de nuevo");
-                //status = Status.CHECKOUT_LARVA;
+                status = Status.CHECKOUT_LARVA;
             }
         }
         if(tries == 3){
