@@ -1,0 +1,10 @@
+{
+    "log": true,
+    "silent": false,
+    "system": true,
+    "boot": "jade",
+    "jadeconnection": {
+        "host": "isg2.ugr.es",
+        "port": 1099
+    }
+}
