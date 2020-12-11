@@ -13,7 +13,7 @@ public class AgentNBP3 {
         ConsoleBoot app = new ConsoleBoot("P3", args);
         app.selectConnection();
         
-        app.launchAgent("AlmirallP3", Listener.class);
+        app.launchAgent("AlmirallP3_2", Listener.class);
         app.shutDown();        
     }
     

@@ -174,14 +174,14 @@ public class Listener extends IntegratedAgent{
     public ACLMessage subscribeByType(String type){
         String subscribe_type = "{\"type\":\""+type+"\"}";
         out = in.createReply();
-        out.setProtocol("REFERENCE");
-        out.setPerformative(ACLMessage.QUERY_REF);
+        out.setProtocol("REGULAR");
+        out.setPerformative(ACLMessage.SUBSCRIBE);
         out.setInReplyTo(replyWith);
         out.setConversationId(conversationID);
         out.setContent(subscribe_type);
         this.send(out);
         ACLMessage reply = this.blockingReceive(10000);
-        System.out.println("RESPUESTA SUSCRIPCION AGENTE: "+in);
+        System.out.println("RESPUESTA SUSCRIPCION AGENTE: "+reply);
         if(reply != null){
             in = reply;
             if(in.getPerformative() == ACLMessage.AGREE){
