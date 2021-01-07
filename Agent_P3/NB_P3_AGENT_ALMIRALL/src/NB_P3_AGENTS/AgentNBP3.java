@@ -1,8 +1,3 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package NB_P3_AGENTS;
 
 import AppBoot.ConsoleBoot;
@@ -13,7 +8,10 @@ public class AgentNBP3 {
         ConsoleBoot app = new ConsoleBoot("P3", args);
         app.selectConnection();
         
-        app.launchAgent("AlmirallP3_2", Listener.class);
+        app.launchAgent("ALMIRALL_LISTENER", Listener.class);
+        app.launchAgent("ALMIRALL_SEEKER1", Seeker.class);
+        app.launchAgent("ALMIRALL_SEEKER2", Seeker.class);
+        app.launchAgent("ALMIRALL_RESCUER", Seeker.class);
         app.shutDown();        
     }
     
