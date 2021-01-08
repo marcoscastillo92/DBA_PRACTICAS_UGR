@@ -3,6 +3,7 @@ package NB_P3_AGENTS;
 import com.eclipsesource.json.*;
 import jade.lang.acl.ACLMessage;
 import YellowPages.YellowPages;
+import java.util.Set;
 
 public class Listener extends BasicDrone {
     //public String service, worldManager, conversationID, replyWith, id_problema;
@@ -109,12 +110,13 @@ public class Listener extends BasicDrone {
      */
     public void checkOut(){
         this.replyMessage("ANALYTICS", ACLMessage.CANCEL, "");
-        
+        /*
         in = this.blockingReceive(10000);
         if(in.getPerformative() == ACLMessage.INFORM){
+        */
             //this.doExit();
             status = Status.EXIT;
-        }
+        //}
     }
 
     /**
@@ -195,6 +197,7 @@ public class Listener extends BasicDrone {
         ACLMessage in_aux = this.blockingReceive(10000);
         if(in_aux.getPerformative() == ACLMessage.CONFIRM || in_aux.getPerformative() == ACLMessage.INFORM){
             yp.updateYellowPages(in_aux);
+            System.out.println(in.toString());
             System.out.println("YellowPages actualizada (shopping): "+yp.prettyPrint());
         }else{
             System.out.println("No se ha podido actualizar correctamente las YellowPages.");
@@ -210,8 +213,13 @@ public class Listener extends BasicDrone {
         contentMessage.add("ConversationID", conversationID);
         contentMessage.add("ReplyWith", replyWith);
         
+        Set<String> shops = yp.queryProvidersofService("shop@"+cID1);
+        System.out.println(shops.toString());
+        
+        
         this.initMessage("ALMIRALL_SEEKER1", "REGULAR", contentMessage.toString(), ACLMessage.INFORM);
         this.initMessage("ALMIRALL_SEEKER2", "REGULAR", contentMessage.toString(), ACLMessage.INFORM);
+        this.initMessage("ALMIRALL_SEEKER3", "REGULAR", contentMessage.toString(), ACLMessage.INFORM);
         this.initMessage("ALMIRALL_RESCUER", "REGULAR", contentMessage.toString(), ACLMessage.INFORM);
     }
     
