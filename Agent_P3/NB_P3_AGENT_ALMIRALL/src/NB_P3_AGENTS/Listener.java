@@ -213,7 +213,7 @@ public class Listener extends BasicDrone {
         contentMessage.add("ConversationID", conversationID);
         contentMessage.add("ReplyWith", replyWith);
         
-        Set<String> shops = yp.queryProvidersofService("shop@"+cID1);
+        Set<String> shops = yp.queryProvidersofService("shop@"+conversationID);
         System.out.println(shops.toString());
         
         
