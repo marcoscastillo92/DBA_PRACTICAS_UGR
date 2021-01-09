@@ -1,5 +1,6 @@
 package NB_P3_AGENTS;
 
+import jade.lang.acl.ACLMessage;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -50,6 +51,7 @@ public class Seeker extends MoveDrone {
                 
             case EXIT:
                 Info("Se cierra el agente");
+                this.replyMessage("ANALYTICS", ACLMessage.CANCEL, "");
                 _exitRequested = true;
                 break;
         }

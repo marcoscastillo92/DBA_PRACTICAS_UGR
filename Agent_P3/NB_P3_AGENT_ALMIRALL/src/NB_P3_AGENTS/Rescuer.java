@@ -33,17 +33,19 @@ public class Rescuer extends MoveDrone {
                 break;
             
             case PLANNING:
-                in = this.blockingReceive();
+                /*in = this.blockingReceive();
                 if (in.getContent().contains("COIN")) {
                     System.out.println("Mensaje recibido");
                     System.out.println("Guardando coin " + in.getContent());
                     this.wallet.add(in.getContent());
                 }
+                */
                 status = Status.EXIT;
                 break;
                 
             case EXIT:
                 Info("Se cierra el agente");
+                this.replyMessage("ANALYTICS", ACLMessage.CANCEL, "");
                 _exitRequested = true;
                 break;
                 
