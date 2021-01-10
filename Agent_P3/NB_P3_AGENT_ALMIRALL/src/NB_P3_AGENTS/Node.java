@@ -17,6 +17,7 @@ public class Node {
     private final double y;
     private final int height;
     private boolean visited;
+    int MAX_HEIGHT = 255;
 
     public Node(String id, double x, double y, int height) {
         this.id = id;
