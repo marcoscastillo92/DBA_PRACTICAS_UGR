@@ -15,11 +15,15 @@ public class Node {
     private final String id;
     private final double x;
     private final double y;
+    private final int height;
+    private boolean visited;
 
-    public Node(String id, double x, double y) {
+    public Node(String id, double x, double y, int height) {
         this.id = id;
         this.x = x;
         this.y = y;
+        this.height = height;
+        this.visited = false;
     }
 
     public String getId() {
@@ -32,6 +36,18 @@ public class Node {
 
     public double getY() {
         return y;
+    }
+    
+    public int getHeight() {
+        return height;
+    }
+    
+    public boolean isVisited() {
+        return this.visited;
+    }
+    
+    public void setVisited(boolean visited) {
+        this.visited = visited;
     }
 
     @Override

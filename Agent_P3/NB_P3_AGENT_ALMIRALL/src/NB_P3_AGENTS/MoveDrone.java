@@ -6,11 +6,15 @@ import com.eclipsesource.json.JsonArray;
 import jade.core.AID;
 import jade.lang.acl.ACLMessage;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public abstract class MoveDrone extends BasicDrone {
     protected Status status;
     protected ArrayList<String> wallet;
     String[] shops;
+    Graph<Node> graphMap;
+    RouteFinder<Node> routeFinder;
+    List<Node> route;
     
     @Override
     public void setup(){
@@ -31,6 +35,7 @@ public abstract class MoveDrone extends BasicDrone {
             Info("Recibido mapa del listening!");
             JsonObject contentObject = new JsonObject(Json.parse(in.getContent()).asObject());
             map.loadMap(contentObject.get("map").asObject());
+            setUpAStarPathfinding();
             worldManager = contentObject.get("WorldManager").toString();
             conversationID = contentObject.get("ConversationID").toString();
             conversationID = conversationID.replace("\"", "");
@@ -49,6 +54,13 @@ public abstract class MoveDrone extends BasicDrone {
         return false;
     }
     
+    /**
+     * Método para suscribirse por tipo al WM
+     * @param type
+     * @return ACLMessage
+     * @author Marcos Castillo
+     * @modifiedBy Juan Pablo
+     */
     public ACLMessage subscribeByType(String type){
         int tries = 0;
         String content;
@@ -96,6 +108,11 @@ public abstract class MoveDrone extends BasicDrone {
         return in;
     }
     
+    /**
+     * Método para hacer el checkIn en Larva
+     * @return ACLMessage
+     * @author Marcos Castillo
+     */
     public ACLMessage checkIn(){
         System.out.println("Intenta hacer el checkin en Larva");
         this.initMessage(_identitymanager, "ANALYTICS", "", ACLMessage.SUBSCRIBE);
@@ -169,5 +186,30 @@ public abstract class MoveDrone extends BasicDrone {
             // En otro caso, se habra realizado la compra correctamente
             System.out.println("Compra realizada");
         }
+    }
+    
+    /**
+     * Método para inicializar los datos del algoritmo A*
+     * @author Marcos Castillo
+     */
+    public void setUpAStarPathfinding() {      
+        graphMap = new Graph<Node>(map.asSet(),map.getConnections());
+        routeFinder = new RouteFinder<Node>(graphMap, new Scorer(), new Scorer());
+    }
+    
+    /**
+     * Método para buscar una ruta con el algoritmo A*
+     * @param xFrom posición X de origen
+     * @param yFrom posición Y de origen
+     * @param xTo posición X de destino
+     * @param yTo posición Y de destino
+     * @author Marcos Castillo
+     */
+    public void findRoute(int xFrom, int yFrom, int xTo, int yTo) {
+        String idFrom = yFrom+""+xFrom;
+        String idTo = yTo+""+xTo;
+        
+        route = routeFinder.findRoute(graphMap.getNode(idFrom), graphMap.getNode(idTo));
+        System.out.println("RUTA: \n"+route.stream().map(Node::getId).collect(Collectors.toList()));
     }
 }

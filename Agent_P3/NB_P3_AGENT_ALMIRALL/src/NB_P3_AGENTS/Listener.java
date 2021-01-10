@@ -144,7 +144,7 @@ public class Listener extends BasicDrone {
                     map.loadMap(jsonMapFile);
                     this.refreshYellowPages();
                     
-                    shops = yp.queryProvidersofService(conversationID);
+                    shops = yp.queryProvidersofService("shop@"+conversationID);
                     if (!shops.isEmpty()) {
                         System.out.println("TIENDAS: " + shops);
                     }
