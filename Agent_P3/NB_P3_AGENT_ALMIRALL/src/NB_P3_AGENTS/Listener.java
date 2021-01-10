@@ -12,6 +12,7 @@ public class Listener extends BasicDrone {
     Status status;
     int tries;
     JsonObject contentMessage;
+    Set<String> shops;
     
     @Override
     public void setup(){
@@ -134,6 +135,7 @@ public class Listener extends BasicDrone {
             if(in.getPerformative() == ACLMessage.CONFIRM || in.getPerformative() == ACLMessage.INFORM){
                 conversationID = in.getConversationId();
                 replyWith = in.getReplyWith();
+                
                 //Obtener el mapa en el mensaje y asignarlo al DBAMap de la clase
                 JsonObject replyObj = new JsonObject(Json.parse(in.getContent()).asObject());
                 if(replyObj.names().contains("map")){
@@ -141,6 +143,12 @@ public class Listener extends BasicDrone {
                     contentMessage.add("map", jsonMapFile);
                     map.loadMap(jsonMapFile);
                     this.refreshYellowPages();
+                    
+                    shops = yp.queryProvidersofService(conversationID);
+                    if (!shops.isEmpty()) {
+                        System.out.println("TIENDAS: " + shops);
+                    }
+                    
                     status = Status.SUBSCRIBE_TYPE;
                 }else{
                     System.out.println("Error 2 no se ha obtenido el mapa en la subscripción: " + replyObj.toString());
@@ -212,11 +220,9 @@ public class Listener extends BasicDrone {
         contentMessage.add("WorldManager", worldManager);
         contentMessage.add("ConversationID", conversationID);
         contentMessage.add("ReplyWith", replyWith);
-        
-        Set<String> shops = yp.queryProvidersofService("shop@"+conversationID);
-        System.out.println(shops.toString());
-        
-        
+        System.out.println("REPLYWITH " + replyWith);
+        contentMessage.add("Shops", shops.toString());
+
         this.initMessage("ALMIRALL_SEEKER1", "REGULAR", contentMessage.toString(), ACLMessage.INFORM);
         this.initMessage("ALMIRALL_SEEKER2", "REGULAR", contentMessage.toString(), ACLMessage.INFORM);
         this.initMessage("ALMIRALL_SEEKER3", "REGULAR", contentMessage.toString(), ACLMessage.INFORM);

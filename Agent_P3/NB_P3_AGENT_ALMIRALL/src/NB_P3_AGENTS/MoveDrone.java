@@ -10,6 +10,7 @@ import java.util.*;
 public abstract class MoveDrone extends BasicDrone {
     protected Status status;
     protected ArrayList<String> wallet;
+    String[] shops;
     
     @Override
     public void setup(){
@@ -35,6 +36,13 @@ public abstract class MoveDrone extends BasicDrone {
             conversationID = conversationID.replace("\"", "");
             replyWith = contentObject.get("ReplyWith").toString();
             replyWith = replyWith.replace("\"", "");
+            String tiendas = contentObject.get("Shops").toString();
+            tiendas = tiendas.replace("\"", "");
+            tiendas = tiendas.replace("[", "");
+            tiendas = tiendas.replace("]", "");
+            tiendas = tiendas.replace(" ", "");
+            shops = tiendas.split(",");
+            
             return true;
         }
         
