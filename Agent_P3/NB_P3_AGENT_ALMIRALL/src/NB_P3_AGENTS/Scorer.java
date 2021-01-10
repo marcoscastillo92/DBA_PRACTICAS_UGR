@@ -35,6 +35,8 @@ public class Scorer<T extends Node> {
         
         if(to.getHeight() >= to.MAX_HEIGHT){
             distance += 999999999.99;
+        }else{
+            distance += to.getHeight() - from.getHeight(); //Sumamos a la ponderación la diferencia de altura
         }
         
         return distance;
