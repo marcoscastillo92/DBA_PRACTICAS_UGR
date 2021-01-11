@@ -3,6 +3,7 @@ package NB_P3_AGENTS;
 import com.eclipsesource.json.*;
 import jade.lang.acl.ACLMessage;
 import YellowPages.YellowPages;
+import java.util.HashSet;
 import java.util.Set;
 
 public class Listener extends BasicDrone {
@@ -20,6 +21,7 @@ public class Listener extends BasicDrone {
         status = Status.CHECKIN_LARVA;
         tries = 0;
         contentMessage = new JsonObject();
+        shops = new HashSet<String>();
     }
     
     @Override
@@ -144,11 +146,6 @@ public class Listener extends BasicDrone {
                     map.loadMap(jsonMapFile);
                     this.refreshYellowPages();
                     
-                    shops = yp.queryProvidersofService("shop@"+conversationID);
-                    if (!shops.isEmpty()) {
-                        System.out.println("TIENDAS: " + shops);
-                    }
-                    
                     status = Status.SUBSCRIBE_TYPE;
                 }else{
                     System.out.println("Error 2 no se ha obtenido el mapa en la subscripción: " + replyObj.toString());
@@ -177,9 +174,12 @@ public class Listener extends BasicDrone {
         if(reply != null){
             in = reply;
             if(in.getPerformative() == ACLMessage.INFORM){
-                conversationID = in.getConversationId();
                 replyWith = in.getReplyWith();
                 this.sendInitMessage();
+                this.refreshYellowPages(); 
+                shops = yp.queryProvidersofService(conversationID);
+                conversationID = in.getConversationId();
+                
                 status = Status.LISTENNING;
             }else{
                 System.out.println("No se ha podido empezar partida, se deberá solicitar de nuevo");

@@ -58,12 +58,14 @@ public abstract class MoveDrone extends BasicDrone {
         
         for (String tienda:shops) {
             // Crea el mensaje y lo envia
-            out = new ACLMessage();
+            /*out = new ACLMessage();
             out.setSender(getAID());
             out.addReceiver(new AID(tienda, AID.ISLOCALNAME));
             out.setPerformative(ACLMessage.QUERY_REF);
             out.setContent("");
             this.send(out);
+            */
+            this.replyMessage("REGULAR", ACLMessage.QUERY_REF, tienda);
             
             // Espera la respuesta
             in = this.blockingReceive();
@@ -73,14 +75,19 @@ public abstract class MoveDrone extends BasicDrone {
             }
             else {
                 // En otro caso, se habra realizado la consulta correctamente  
-                JsonObject respuesta = Json.parse(in.getContent()).asObject();
-                
+                JsonObject replyObj = Json.parse(in.getContent()).asObject();
+                if(replyObj.names().contains("products")){
+                    JsonObject jsonProducts = replyObj.get("products").asObject();
+                    //Map<String, Integer>
+                }
+                /*
                 for (int i = 0; i<respuesta.names().size(); i++){
                     //sensorValues.add("sensor1", 12);
                     sensorValues.add(respuesta.names().get(i), respuesta.get(respuesta.names().get(i)));
                 }
                 
                 System.out.println("Contenido de la tienda: "+respuesta.toString());
+                */
             }
             
             shopValues.add(tienda, sensorValues);
