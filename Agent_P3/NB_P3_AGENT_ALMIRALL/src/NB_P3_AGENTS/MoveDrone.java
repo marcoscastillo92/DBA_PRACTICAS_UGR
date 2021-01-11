@@ -11,15 +11,19 @@ import java.util.stream.Collectors;
 public abstract class MoveDrone extends BasicDrone {
     protected Status status;
     protected ArrayList<String> wallet;
+    private int xPosition, yPosition, droneHeight, energy;
     String[] shops;
     Graph<Node> graphMap;
     RouteFinder<Node> routeFinder;
     List<Node> route;
+    JsonObject currentState;
     
     @Override
     public void setup(){
         super.setup();
         this.wallet = new ArrayList<>();
+        currentState = new JsonObject();
+        energy = 10;
     }
     
     /**
@@ -47,13 +51,40 @@ public abstract class MoveDrone extends BasicDrone {
             tiendas = tiendas.replace("]", "");
             tiendas = tiendas.replace(" ", "");
             shops = tiendas.split(",");
-            
+            xPosition = contentObject.get("xPosition").asInt();
+            yPosition = contentObject.get("yPosition").asInt();
+
             return true;
         }
         
         return false;
     }
-    
+
+    public boolean loginWorld() {
+        JsonObject loginJson = new JsonObject();
+        JsonArray sensors = new JsonArray();
+
+        loginJson.add("operation","login");
+        loginJson.add("attach", sensors);
+        loginJson.add("posx", xPosition);
+        loginJson.add("posy", yPosition);
+
+        this.replyMessage("REGULAR", ACLMessage.REQUEST, loginJson.toString());
+        //this.initMessage(worldManager, "REGULAR", loginJson.toString(), ACLMessage.REQUEST, conversationID, replyWith);
+        in = this.blockingReceive();
+        if(in.getPerformative() != ACLMessage.REFUSE && in.getPerformative() != ACLMessage.FAILURE){
+            Info("Login en mundo correcto, iniciado en la posición ["+xPosition+", "+yPosition+"]");
+            conversationID = in.getConversationId();
+            replyWith = in.getReplyWith();
+            droneHeight = graphMap.getNode(yPosition+""+xPosition).getHeight();
+            return true;
+        }
+        Info("Fallo en login en el mundo. Mensaje: "+in.getContent());
+        status = Status.EXIT;
+
+        return false;
+    }
+
     /**
      * Método para suscribirse por tipo al WM
      * @param type
@@ -93,8 +124,12 @@ public abstract class MoveDrone extends BasicDrone {
                         this.wallet.add(monedas.get(i).asString());
                     }
                 }
+
+                if(replyObj.names().contains("energy")){
+                    energy = replyObj.get("energy").asInt();
+                }
                 
-                status = Status.EXIT;
+                //status = Status.EXIT;
             }else{
                 System.out.println("No se ha podido empezar partida, se deberá solicitar de nuevo");
                 status = Status.EXIT;
@@ -211,5 +246,50 @@ public abstract class MoveDrone extends BasicDrone {
         
         route = routeFinder.findRoute(graphMap.getNode(idFrom), graphMap.getNode(idTo));
         System.out.println("RUTA: \n"+route.stream().map(Node::getId).collect(Collectors.toList()));
+    }
+
+    private int[] getActualPosition() {
+        return new int[]{xPosition, yPosition};
+    }
+
+    private int[] getNextPosition() {
+        Node nextNode = route.get(0);
+        return new int[]{(int)nextNode.getX(), (int)nextNode.getY()};
+    }
+
+    private int getDroneHeight() {
+        return droneHeight;
+    }
+
+    private int getEnergy() {
+        return energy;
+    }
+
+    public void setupCurrentState(){
+        int[] position = getActualPosition();
+        int[] nextPosition = getNextPosition();
+        currentState.add("actualXPos",position[0]);
+        currentState.add("actualYPos",position[1]);
+        currentState.add("nextXPos",nextPosition[0]);
+        currentState.add("nextYPos",nextPosition[1]);
+        currentState.add("droneHeight",getDroneHeight());
+        currentState.add("energy",getEnergy());
+        currentState.add("carryingLudwigs",nextPosition[0]);
+    }
+
+    public void updateCurrentState(){
+        int[] position = getActualPosition();
+        int[] nextPosition = getNextPosition();
+        currentState.set("actualXPos",position[0]);
+        currentState.set("actualYPos",position[1]);
+        currentState.set("nextXPos",nextPosition[0]);
+        currentState.set("nextYPos",nextPosition[1]);
+        currentState.set("droneHeight",getDroneHeight());
+        currentState.set("energy",getEnergy());
+        currentState.set("carryingLudwigs",nextPosition[0]);
+    }
+
+    public void exitRequestedToListener(){
+        this.initMessage("ALMIRALL_LISTENER", "INFORM", "", ACLMessage.CANCEL, conversationID, replyWith);
     }
 }

@@ -41,7 +41,28 @@ public abstract class BasicDrone extends IntegratedAgent {
         out.setPerformative(performative);
         this.send(out);
     }
-    
+
+    /**
+     * Mensaje inicial a un agente
+     * @param agent
+     * @param protocol
+     * @param content
+     * @param performative
+     * @author Diego Garcia Aurelio
+     */
+    public void initMessage(String agent, String protocol, String content, int performative, String conversationID, String inReplyTo) {
+        out = new ACLMessage();
+        out.setSender(getAID());
+        out.addReceiver(new AID(agent, AID.ISLOCALNAME));
+        out.setProtocol(protocol);
+        out.setContent(content);
+        out.setEncoding(_myCardID.getCardID());
+        out.setPerformative(performative);
+        out.setInReplyTo(replyWith);
+        out.setConversationId(conversationID);
+        this.send(out);
+    }
+
     /**
      * Respuesta a un mensaje
      * @param protocol

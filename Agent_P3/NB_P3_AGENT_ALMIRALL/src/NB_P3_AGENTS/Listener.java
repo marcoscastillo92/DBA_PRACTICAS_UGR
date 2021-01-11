@@ -10,7 +10,7 @@ public class Listener extends BasicDrone {
     //ACLMessage out, in;
     YellowPages yp;
     Status status;
-    int tries;
+    int tries, cancelRequested;
     JsonObject contentMessage;
     Set<String> shops;
     
@@ -19,6 +19,7 @@ public class Listener extends BasicDrone {
         super.setup();
         status = Status.CHECKIN_LARVA;
         tries = 0;
+        cancelRequested = 0;
         contentMessage = new JsonObject();
     }
     
@@ -36,9 +37,11 @@ public class Listener extends BasicDrone {
                 break;
             case LISTENNING:
                 status = Status.PLANNING;
+                listenForMessages();
                 break;
             case PLANNING:
-                status = Status.CANCEL_WM;
+                //status = Status.CANCEL_WM;
+                status = Status.LISTENNING;
                 break;
             case CANCEL_WM:
                 status = Status.CHECKOUT_LARVA;
@@ -52,7 +55,22 @@ public class Listener extends BasicDrone {
                 break;
         }
     }
-    
+
+    private void listenForMessages() {
+        in = this.blockingReceive();
+
+        if(in != null){
+            if(in.getPerformative() == ACLMessage.CANCEL){
+                cancelRequested++;
+                if(cancelRequested == 3){
+                    status = Status.CANCEL_WM;
+                }else{
+                    status = Status.LISTENNING;
+                }
+            }
+        }
+    }
+
     /**
      * Función que hace el checkin en Larva al Identity Manager y llama a obtener las YellowPages
      * @author Marcos Castillo
@@ -165,7 +183,7 @@ public class Listener extends BasicDrone {
     /**
      * Función que se suscribe al WM por tipo de DRONE.
      * @author Marcos Castillo
-     * @param String type Tipo de DRONE "LISTENER", "RESCUER" o "SEEKER"
+     * @param type String Tipo de DRONE "LISTENER", "RESCUER" o "SEEKER"
      * @return ACLMessage respuesta
      */
     public ACLMessage subscribeByType(String type){
@@ -223,9 +241,17 @@ public class Listener extends BasicDrone {
         System.out.println("REPLYWITH " + replyWith);
         contentMessage.add("Shops", shops.toString());
 
+        contentMessage.add("xPosition", 1);
+        contentMessage.add("yPosition", 1);
         this.initMessage("ALMIRALL_SEEKER1", "REGULAR", contentMessage.toString(), ACLMessage.INFORM);
+        contentMessage.set("xPosition", 3);
+        contentMessage.set("yPosition", 3);
         this.initMessage("ALMIRALL_SEEKER2", "REGULAR", contentMessage.toString(), ACLMessage.INFORM);
+        contentMessage.set("xPosition", 6);
+        contentMessage.set("yPosition", 6);
         this.initMessage("ALMIRALL_SEEKER3", "REGULAR", contentMessage.toString(), ACLMessage.INFORM);
+        contentMessage.set("xPosition", 10);
+        contentMessage.set("yPosition", 10);
         this.initMessage("ALMIRALL_RESCUER", "REGULAR", contentMessage.toString(), ACLMessage.INFORM);
     }
     

@@ -29,6 +29,9 @@ public class Seeker extends MoveDrone {
             case SUBSCRIBE_WM:
                 this.checkIn();
                 this.subscribeByType("SEEKER");
+                if(this.loginWorld()){
+                    this.setupCurrentState();
+                }
                 status = Status.PLANNING;
                 break;
                 
