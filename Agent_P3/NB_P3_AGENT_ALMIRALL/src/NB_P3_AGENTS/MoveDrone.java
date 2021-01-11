@@ -5,6 +5,8 @@ import com.eclipsesource.json.JsonObject;
 import com.eclipsesource.json.JsonArray;
 import jade.core.AID;
 import jade.lang.acl.ACLMessage;
+import jade.lang.acl.MessageTemplate;
+
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -17,6 +19,7 @@ public abstract class MoveDrone extends BasicDrone {
     RouteFinder<Node> routeFinder;
     List<Node> route;
     JsonObject currentState;
+    Boolean subscribed;
     
     @Override
     public void setup(){
@@ -24,6 +27,7 @@ public abstract class MoveDrone extends BasicDrone {
         this.wallet = new ArrayList<>();
         currentState = new JsonObject();
         energy = 10;
+        subscribed = false;
     }
     
     /**
@@ -40,6 +44,7 @@ public abstract class MoveDrone extends BasicDrone {
             JsonObject contentObject = new JsonObject(Json.parse(in.getContent()).asObject());
             map.loadMap(contentObject.get("map").asObject());
             setUpAStarPathfinding();
+            name = contentObject.get("name").toString();
             worldManager = contentObject.get("WorldManager").toString();
             conversationID = contentObject.get("ConversationID").toString();
             conversationID = conversationID.replace("\"", "");
@@ -69,9 +74,10 @@ public abstract class MoveDrone extends BasicDrone {
         loginJson.add("posx", xPosition);
         loginJson.add("posy", yPosition);
 
-        this.replyMessage("REGULAR", ACLMessage.REQUEST, loginJson.toString());
+        this.replyMessage("REGULAR", ACLMessage.REQUEST, loginJson.toString(), name);
         //this.initMessage(worldManager, "REGULAR", loginJson.toString(), ACLMessage.REQUEST, conversationID, replyWith);
-        in = this.blockingReceive();
+        MessageTemplate t = MessageTemplate.MatchInReplyTo(name);
+        in = this.blockingReceive(t);
         if(in.getPerformative() != ACLMessage.REFUSE && in.getPerformative() != ACLMessage.FAILURE){
             Info("Login en mundo correcto, iniciado en la posición ["+xPosition+", "+yPosition+"]");
             conversationID = in.getConversationId();
@@ -95,50 +101,53 @@ public abstract class MoveDrone extends BasicDrone {
     public ACLMessage subscribeByType(String type){
         int tries = 0;
         String content;
-        
-        String subscribe_type = "{\"type\":\""+type+"\"}";
-        out = new ACLMessage();
-        out.setProtocol("REGULAR");
-        out.setSender(getAID());
-        out.addReceiver(new AID("Almirall", AID.ISLOCALNAME));
-        out.setPerformative(ACLMessage.SUBSCRIBE);
-        out.setContent(subscribe_type);
-        out.setInReplyTo(this.replyWith);
-        out.setConversationId(this.conversationID);
-        this.send(out);
-        
-        ACLMessage reply = this.blockingReceive();
-        System.out.println("RESPUESTA SUSCRIPCION AGENTE " + type + ": "+reply);
-        if(reply != null){
-            in = reply;
-            if(in.getPerformative() == ACLMessage.INFORM){
-                content = in.getContent();
-                
-                System.out.println(content);
-                
-                JsonObject replyObj = new JsonObject(Json.parse(in.getContent()).asObject());
-                if (replyObj.names().contains("coins")) {
-                    JsonArray monedas = replyObj.get("coins").asArray();
-                    
-                    for (int i = 0; i < monedas.size(); i++) {
-                        this.wallet.add(monedas.get(i).asString());
-                    }
-                }
+        if(!subscribed) {
+            String subscribe_type = "{\"type\":\"" + type + "\"}";
+            out = new ACLMessage();
+            out.setProtocol("REGULAR");
+            out.setSender(getAID());
+            out.addReceiver(new AID("Almirall", AID.ISLOCALNAME));
+            out.setPerformative(ACLMessage.SUBSCRIBE);
+            out.setContent(subscribe_type);
+            out.setInReplyTo(this.replyWith);
+            out.setReplyWith(name);
+            out.setConversationId(this.conversationID);
+            this.send(out);
 
-                if(replyObj.names().contains("energy")){
-                    energy = replyObj.get("energy").asInt();
+            MessageTemplate t = MessageTemplate.MatchInReplyTo(name);
+            ACLMessage reply = this.blockingReceive(t);
+            System.out.println("RESPUESTA SUSCRIPCION AGENTE " + type + ": " + reply);
+            if (reply != null) {
+                in = reply;
+                if (in.getPerformative() == ACLMessage.INFORM) {
+                    content = in.getContent();
+
+                    System.out.println(content);
+
+                    JsonObject replyObj = new JsonObject(Json.parse(in.getContent()).asObject());
+                    if (replyObj.names().contains("coins")) {
+                        JsonArray monedas = replyObj.get("coins").asArray();
+
+                        for (int i = 0; i < monedas.size(); i++) {
+                            this.wallet.add(monedas.get(i).asString());
+                        }
+                    }
+
+                    if (replyObj.names().contains("energy")) {
+                        energy = replyObj.get("energy").asInt();
+                    }
+                    subscribed = true;
+                    //status = Status.EXIT;
+                } else {
+                    System.out.println("No se ha podido empezar partida, se deberá solicitar de nuevo");
+                    status = Status.EXIT;
                 }
-                
-                //status = Status.EXIT;
-            }else{
-                System.out.println("No se ha podido empezar partida, se deberá solicitar de nuevo");
-                status = Status.EXIT;
             }
-        }
-        if(tries == 3){
-            status = Status.EXIT;
-        }else{
-            tries++;
+            if (tries == 3) {
+                status = Status.EXIT;
+            } else {
+                tries++;
+            }
         }
         return in;
     }
@@ -150,9 +159,10 @@ public abstract class MoveDrone extends BasicDrone {
      */
     public ACLMessage checkIn(){
         System.out.println("Intenta hacer el checkin en Larva");
-        this.initMessage(_identitymanager, "ANALYTICS", "", ACLMessage.SUBSCRIBE);
-        
-        in = this.blockingReceive(10000);
+        this.initMessage(_identitymanager, "ANALYTICS", "", ACLMessage.SUBSCRIBE, conversationID, name);
+
+        MessageTemplate t = MessageTemplate.MatchInReplyTo(name);
+        in = this.blockingReceive(t);
         System.out.println("RESPUESTA CHECKIN: "+in);
         if(in.getPerformative() == ACLMessage.CONFIRM || in.getPerformative() == ACLMessage.INFORM){
             Info("Checkin confirmed in the platform");
@@ -267,7 +277,7 @@ public abstract class MoveDrone extends BasicDrone {
 
     public void setupCurrentState(){
         int[] position = getActualPosition();
-        int[] nextPosition = getNextPosition();
+        int[] nextPosition = getActualPosition(); //No tiene objetivo aún al iniciarse
         currentState.add("actualXPos",position[0]);
         currentState.add("actualYPos",position[1]);
         currentState.add("nextXPos",nextPosition[0]);
@@ -290,6 +300,6 @@ public abstract class MoveDrone extends BasicDrone {
     }
 
     public void exitRequestedToListener(){
-        this.initMessage("ALMIRALL_LISTENER", "INFORM", "", ACLMessage.CANCEL, conversationID, replyWith);
+        this.initMessage("ALMIRALL_LISTENER", "INFORM", "", ACLMessage.CANCEL, "INERTN", "INTERN");
     }
 }

@@ -12,6 +12,7 @@ public abstract class BasicDrone extends IntegratedAgent {
     public String service, worldManager, conversationID, replyWith, id_problema;
     ACLMessage out, in;
     Map map;
+    String name;
     
     @Override
     public void setup(){
@@ -50,7 +51,7 @@ public abstract class BasicDrone extends IntegratedAgent {
      * @param performative
      * @author Diego Garcia Aurelio
      */
-    public void initMessage(String agent, String protocol, String content, int performative, String conversationID, String inReplyTo) {
+    public void initMessage(String agent, String protocol, String content, int performative, String conversationID, String replyWithR) {
         out = new ACLMessage();
         out.setSender(getAID());
         out.addReceiver(new AID(agent, AID.ISLOCALNAME));
@@ -59,6 +60,9 @@ public abstract class BasicDrone extends IntegratedAgent {
         out.setEncoding(_myCardID.getCardID());
         out.setPerformative(performative);
         out.setInReplyTo(replyWith);
+        if(!replyWithR.isEmpty()){
+            out.setReplyWith(replyWithR);
+        }
         out.setConversationId(conversationID);
         this.send(out);
     }
@@ -76,6 +80,26 @@ public abstract class BasicDrone extends IntegratedAgent {
         out.setPerformative(performative);
         out.setContent(content);
         out.setInReplyTo(replyWith);
+        out.setConversationId(conversationID);
+        this.send(out);
+    }
+
+    /**
+     * Respuesta a un mensaje
+     * @param protocol
+     * @param performative
+     * @param content
+     * @author Diego Garcia Aurelio
+     */
+    public void replyMessage(String protocol, int performative, String content, String replyWithR) {
+        out = in.createReply();
+        out.setProtocol(protocol);
+        out.setPerformative(performative);
+        out.setContent(content);
+        out.setInReplyTo(replyWith);
+        if(!replyWithR.isEmpty()){
+            out.setReplyWith(replyWithR);
+        }
         out.setConversationId(conversationID);
         this.send(out);
     }

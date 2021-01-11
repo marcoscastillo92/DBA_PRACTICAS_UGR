@@ -3,6 +3,8 @@ package NB_P3_AGENTS;
 import com.eclipsesource.json.*;
 import jade.lang.acl.ACLMessage;
 import YellowPages.YellowPages;
+import jade.lang.acl.MessageTemplate;
+
 import java.util.Set;
 
 public class Listener extends BasicDrone {
@@ -21,6 +23,7 @@ public class Listener extends BasicDrone {
         tries = 0;
         cancelRequested = 0;
         contentMessage = new JsonObject();
+        name = "ALMIRALL_LISTENER";
     }
     
     @Override
@@ -36,7 +39,7 @@ public class Listener extends BasicDrone {
                 this.subscribeByType("LISTENER");
                 break;
             case LISTENNING:
-                status = Status.PLANNING;
+                //status = Status.PLANNING;
                 listenForMessages();
                 break;
             case PLANNING:
@@ -57,15 +60,14 @@ public class Listener extends BasicDrone {
     }
 
     private void listenForMessages() {
-        in = this.blockingReceive();
+        MessageTemplate t = MessageTemplate.MatchConversationId("INTERN");
+        in = this.blockingReceive(t);
 
         if(in != null){
             if(in.getPerformative() == ACLMessage.CANCEL){
                 cancelRequested++;
                 if(cancelRequested == 3){
                     status = Status.CANCEL_WM;
-                }else{
-                    status = Status.LISTENNING;
                 }
             }
         }
@@ -243,15 +245,19 @@ public class Listener extends BasicDrone {
 
         contentMessage.add("xPosition", 1);
         contentMessage.add("yPosition", 1);
+        contentMessage.add("name", "ALMIRALL_SEEKER1");
         this.initMessage("ALMIRALL_SEEKER1", "REGULAR", contentMessage.toString(), ACLMessage.INFORM);
         contentMessage.set("xPosition", 3);
         contentMessage.set("yPosition", 3);
+        contentMessage.set("name", "ALMIRALL_SEEKER2");
         this.initMessage("ALMIRALL_SEEKER2", "REGULAR", contentMessage.toString(), ACLMessage.INFORM);
         contentMessage.set("xPosition", 6);
         contentMessage.set("yPosition", 6);
+        contentMessage.set("name", "ALMIRALL_SEEKER3");
         this.initMessage("ALMIRALL_SEEKER3", "REGULAR", contentMessage.toString(), ACLMessage.INFORM);
         contentMessage.set("xPosition", 10);
         contentMessage.set("yPosition", 10);
+        contentMessage.set("name", "ALMIRALL_RESCUER");
         this.initMessage("ALMIRALL_RESCUER", "REGULAR", contentMessage.toString(), ACLMessage.INFORM);
     }
     
