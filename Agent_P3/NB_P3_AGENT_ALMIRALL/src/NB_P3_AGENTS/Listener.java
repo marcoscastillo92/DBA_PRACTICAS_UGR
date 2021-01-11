@@ -4,7 +4,8 @@ import com.eclipsesource.json.*;
 import jade.lang.acl.ACLMessage;
 import YellowPages.YellowPages;
 import jade.lang.acl.MessageTemplate;
-
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 
 public class Listener extends BasicDrone {
@@ -15,6 +16,7 @@ public class Listener extends BasicDrone {
     int tries, cancelRequested;
     JsonObject contentMessage;
     Set<String> shops;
+    List<DroneInfo> drones;
     
     @Override
     public void setup(){
@@ -24,6 +26,11 @@ public class Listener extends BasicDrone {
         cancelRequested = 0;
         contentMessage = new JsonObject();
         name = "ALMIRALL_LISTENER";
+        drones = new ArrayList<>();
+        drones.add(new DroneInfo("ALMIRALL_SEEKER1"));
+        drones.add(new DroneInfo("ALMIRALL_SEEKER2"));
+        drones.add(new DroneInfo("ALMIRALL_SEEKER3"));
+        drones.add(new DroneInfo("ALMIRALL_RESCUER"));
     }
     
     @Override
@@ -233,8 +240,43 @@ public class Listener extends BasicDrone {
     }
     
     /**
+     * Función que modifica la posición de un drone
+     * @param name nombre del drone
+     * @param x posición coordenada x
+     * @param y posición coordenada y
+     * @author Diego García
+     */
+    private void setDronePosition(String name, int x, int y) {
+        /*for(DroneInfo drone : drones) {
+            if(drone.getName().equals(name)) {
+                drone.setxPosition(x);
+                drone.setyPosition(y);
+                break;
+            }
+        }*/
+        switch(name) {
+            case "ALMIRALL_SEEKER1":
+                drones.get(0).setxPosition(x);
+                drones.get(0).setyPosition(y);
+                break;
+            case "ALMIRALL_SEEKER2":
+                drones.get(1).setxPosition(x);
+                drones.get(1).setyPosition(y);
+                break;
+            case "ALMIRALL_SEEKER3":
+                drones.get(2).setxPosition(x);
+                drones.get(2).setyPosition(y);
+                break;
+            case "ALMIRALL_RESCUER":
+                drones.get(3).setxPosition(x);
+                drones.get(3).setyPosition(y);
+                break;
+        }
+    }
+    
+    /**
      * Función que manda el mensaje inicial al resto de DRONES
-     * @author Diego Garcia Aureli
+     * @author Diego Garcia
      */
     private void sendInitMessage(){
         contentMessage.add("WorldManager", worldManager);
@@ -242,7 +284,7 @@ public class Listener extends BasicDrone {
         contentMessage.add("ReplyWith", replyWith);
         System.out.println("REPLYWITH " + replyWith);
         contentMessage.add("Shops", shops.toString());
-
+        /*
         contentMessage.add("xPosition", 1);
         contentMessage.add("yPosition", 1);
         contentMessage.add("name", "ALMIRALL_SEEKER1");
@@ -259,6 +301,18 @@ public class Listener extends BasicDrone {
         contentMessage.set("yPosition", 10);
         contentMessage.set("name", "ALMIRALL_RESCUER");
         this.initMessage("ALMIRALL_RESCUER", "REGULAR", contentMessage.toString(), ACLMessage.INFORM);
+        */
+        setDronePosition("ALMIRALL_SEEKER1", 1, 1);
+        setDronePosition("ALMIRALL_SEEKER2", 3, 3);
+        setDronePosition("ALMIRALL_SEEKER3", 6, 6);
+        setDronePosition("ALMIRALL_RESCUER", 10, 10);
+        
+        for(DroneInfo drone : drones) {
+            contentMessage.add("xPosition", drone.getxPosition());
+            contentMessage.add("yPosition", drone.getyPosition());
+            contentMessage.add("name", drone.getName());
+            this.initMessage(drone.getName(), "REGULAR", contentMessage.toString(), ACLMessage.INFORM);
+        }
     }
     
 }
