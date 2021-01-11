@@ -144,7 +144,7 @@ public class Listener extends BasicDrone {
                     map.loadMap(jsonMapFile);
                     this.refreshYellowPages();
                     
-                    shops = yp.queryProvidersofService(conversationID);
+                    shops = yp.queryProvidersofService("shop@"+conversationID);
                     if (!shops.isEmpty()) {
                         System.out.println("TIENDAS: " + shops);
                     }
@@ -222,6 +222,8 @@ public class Listener extends BasicDrone {
         contentMessage.add("ReplyWith", replyWith);
         System.out.println("REPLYWITH " + replyWith);
         contentMessage.add("Shops", shops.toString());
+        System.out.println("TIENDAAAAAAAAAAAAAAAAAAAAAAAAAAAS--> " + shops.toString());
+        System.out.println("CoversID------------------------------- " + conversationID);
 
         this.initMessage("ALMIRALL_SEEKER1", "REGULAR", contentMessage.toString(), ACLMessage.INFORM);
         this.initMessage("ALMIRALL_SEEKER2", "REGULAR", contentMessage.toString(), ACLMessage.INFORM);

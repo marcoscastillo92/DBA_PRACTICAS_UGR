@@ -3,6 +3,7 @@ package NB_P3_AGENTS;
 import com.eclipsesource.json.Json;
 import com.eclipsesource.json.JsonObject;
 import com.eclipsesource.json.JsonArray;
+import com.eclipsesource.json.JsonParser;
 import jade.core.AID;
 import jade.lang.acl.ACLMessage;
 import java.util.*;
@@ -11,6 +12,7 @@ public abstract class MoveDrone extends BasicDrone {
     protected Status status;
     protected ArrayList<String> wallet;
     String[] shops;
+    JsonObject prices;
     
     @Override
     public void setup(){
@@ -42,11 +44,49 @@ public abstract class MoveDrone extends BasicDrone {
             tiendas = tiendas.replace("]", "");
             tiendas = tiendas.replace(" ", "");
             shops = tiendas.split(",");
+            prices = setShops();
             
             return true;
         }
         
         return false;
+    }
+    
+    public JsonObject setShops(){
+        JsonObject shopValues = new JsonObject();
+        JsonObject sensorValues = new JsonObject();
+        
+        for (String tienda:shops) {
+            // Crea el mensaje y lo envia
+            out = new ACLMessage();
+            out.setSender(getAID());
+            out.addReceiver(new AID(tienda, AID.ISLOCALNAME));
+            out.setPerformative(ACLMessage.QUERY_REF);
+            out.setContent("");
+            this.send(out);
+            
+            // Espera la respuesta
+            in = this.blockingReceive();
+            if (in.getPerformative() == ACLMessage.FAILURE || in.getPerformative() == ACLMessage.REFUSE) {
+                // Si recibimos FAILURE o REFUSE, no se ha realizado la consulta
+                System.out.println("Error en la consulta de la tienda"+in.getContent());
+            }
+            else {
+                // En otro caso, se habra realizado la consulta correctamente  
+                JsonObject respuesta = Json.parse(in.getContent()).asObject();
+                
+                for (int i = 0; i<respuesta.names().size(); i++){
+                    //sensorValues.add("sensor1", 12);
+                    sensorValues.add(respuesta.names().get(i), respuesta.get(respuesta.names().get(i)));
+                }
+                
+                System.out.println("Contenido de la tienda: "+respuesta.toString());
+            }
+            
+            shopValues.add(tienda, sensorValues);
+        }
+        
+        return shopValues;
     }
     
     public ACLMessage subscribeByType(String type){
@@ -130,7 +170,15 @@ public abstract class MoveDrone extends BasicDrone {
             System.out.println("Este dron no tiene monedas!");
         }
     }
-    
+    /*
+    public void valuate(){
+        for(){
+            for(){
+                
+            }
+        }
+    }
+    */
     public void buy(String shop, String service, int cost) {
         JsonObject compra = new JsonObject();
         JsonArray payment = new JsonArray();
