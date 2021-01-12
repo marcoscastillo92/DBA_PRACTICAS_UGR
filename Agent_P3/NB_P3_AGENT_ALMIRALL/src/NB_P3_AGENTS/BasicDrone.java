@@ -42,6 +42,7 @@ public abstract class BasicDrone extends IntegratedAgent {
         out.setPerformative(performative);
         this.send(out);
     }
+    
 
     /**
      * Mensaje inicial a un agente
@@ -49,7 +50,8 @@ public abstract class BasicDrone extends IntegratedAgent {
      * @param protocol
      * @param content
      * @param performative
-     * @author Diego Garcia Aurelio
+     * @param conversationID
+     * @param replyWithR 
      */
     public void initMessage(String agent, String protocol, String content, int performative, String conversationID, String replyWithR) {
         out = new ACLMessage();
