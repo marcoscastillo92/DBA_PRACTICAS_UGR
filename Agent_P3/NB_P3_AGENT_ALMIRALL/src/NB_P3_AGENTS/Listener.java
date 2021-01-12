@@ -93,7 +93,7 @@ public class Listener extends BasicDrone {
                 int ludwigHeight = response.get("ludwigHeight").asInt();
                 double distanceToRescuer = calculateDistance(xPositionLudwig, yPositionLudwig, ludwigHeight);
 
-                Node node = new Node(yPositionLudwig+""+xPositionLudwig, xPositionLudwig, yPositionLudwig, ludwigHeight, distanceToRescuer);
+                Node node = new Node(yPositionLudwig+"-"+xPositionLudwig, xPositionLudwig, yPositionLudwig, ludwigHeight, distanceToRescuer);
                 ludwigs.add(node);
 
                 this.replyMessage("INFORM", ACLMessage.CONFIRM, "");

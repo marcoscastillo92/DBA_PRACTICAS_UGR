@@ -35,6 +35,7 @@ public abstract class MoveDrone extends BasicDrone {
     List<Node> route;
     JsonObject currentState;
     Boolean subscribed;
+    Node objectiveFounded;
     
     @Override
     public void setup(){
@@ -43,6 +44,7 @@ public abstract class MoveDrone extends BasicDrone {
         currentState = new JsonObject();
         energy = 10;
         subscribed = false;
+        objectiveFounded = new Node("11-1", 1, 11, 239); //PARA MOCKUP se ha de hacer bien cuando se encuentre un Ludwig
     }
     
     /**
@@ -100,7 +102,7 @@ public abstract class MoveDrone extends BasicDrone {
             Info("Login en mundo correcto, iniciado en la posición ["+xPosition+", "+yPosition+"]");
             conversationID = in.getConversationId();
             replyWith = in.getReplyWith();
-            droneHeight = graphMap.getNode(yPosition+""+xPosition).getHeight();
+            droneHeight = graphMap.getNode(yPosition+"-"+xPosition).getHeight();
             return true;
         }
         Info("Fallo en login en el mundo. Mensaje: "+in.getContent());
@@ -305,8 +307,8 @@ public abstract class MoveDrone extends BasicDrone {
      * @author Marcos Castillo
      */
     public void findRoute(int xFrom, int yFrom, int xTo, int yTo) {
-        String idFrom = yFrom+""+xFrom;
-        String idTo = yTo+""+xTo;
+        String idFrom = yFrom+"-"+xFrom;
+        String idTo = yTo+"-"+xTo;
         
         route = routeFinder.findRoute(graphMap.getNode(idFrom), graphMap.getNode(idTo));
         System.out.println("RUTA: \n"+route.stream().map(Node::getId).collect(Collectors.toList()));
@@ -366,9 +368,9 @@ public abstract class MoveDrone extends BasicDrone {
         if ("Found".equals(actionToPerform)) {
             protocol = "INFORM";
             performative = ACLMessage.INFORM;
-            //action.add("xPositionLudwig", xPositionLudwig);
-            //action.add("yPositionLudwig", yPositionLudwig);
-            //action.add("ludwigHeight", ludwigHeight);
+            action.add("xPositionLudwig", objectiveFounded.getX());
+            action.add("yPositionLudwig", objectiveFounded.getY());
+            action.add("ludwigHeight", objectiveFounded.getHeight());
         } else {
             protocol = "REGULAR";
             performative = ACLMessage.PROPOSE;

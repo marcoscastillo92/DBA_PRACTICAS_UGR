@@ -3,7 +3,7 @@ package NB_P3_AGENTS;
 public class DroneInfo {
     private String name;
     private int money;
-    private int xPosition, yPosition;
+    private int xPosition, yPosition, nextXPosition, nextYPosition;
     private int droneHeight;
     private int energy;
     
@@ -80,5 +80,13 @@ public class DroneInfo {
 
     public int getEnergy() {
         return energy;
-    } 
+    }
+
+    public int getNextXPosition() { return nextXPosition; }
+
+    public int getNextYPosition() { return nextYPosition; }
+
+    public void setNextXPosition(int x) {  nextXPosition = x; }
+
+    public void setNextYPosition(int y) {  nextYPosition = y; }
 }

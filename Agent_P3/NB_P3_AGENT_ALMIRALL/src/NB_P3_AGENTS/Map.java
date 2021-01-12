@@ -55,7 +55,7 @@ public class Map {
     public void fillInfoAStarMap() {
         for(int i = 0; i < height; i++){ //Y value
             for(int j = 0; j < width; j++){ //X value
-                String key = i+""+j;
+                String key = i+"-"+j;
                 mapSet.add(new Node(key, i, j, dbaMap.getLevel(j, i)));
                 String connectionsToNode = getConnectionsFromNodePosition(i,j);
                 connections.put(key, Stream.of(connectionsToNode).collect(Collectors.toSet()));
@@ -75,14 +75,14 @@ public class Map {
         ArrayList<String> response = new ArrayList<String>();
         
         // Ids from nearest Nodes (id format: yx)
-        connectionsToNode[0][0] = (y-1)+""+(x-1); //leftTop
-        connectionsToNode[0][1] = (y+1)+""+x; //top
-        connectionsToNode[0][2] = (y-1)+""+(x+1); //rightTop
-        connectionsToNode[1][0] = y+""+(x-1); //left
-        connectionsToNode[1][2] = y+""+(x+1); //right
-        connectionsToNode[2][0] = (y+1)+""+(x-1); //leftBottom
-        connectionsToNode[2][1] = (y-1)+""+x; //bottom
-        connectionsToNode[2][2] = (y+1)+""+(x+1); //rightBottom
+        connectionsToNode[0][0] = (y-1)+"-"+(x-1); //leftTop
+        connectionsToNode[0][1] = (y+1)+"-"+x; //top
+        connectionsToNode[0][2] = (y-1)+"-"+(x+1); //rightTop
+        connectionsToNode[1][0] = y+"-"+(x-1); //left
+        connectionsToNode[1][2] = y+"-"+(x+1); //right
+        connectionsToNode[2][0] = (y+1)+"-"+(x-1); //leftBottom
+        connectionsToNode[2][1] = (y-1)+"-"+x; //bottom
+        connectionsToNode[2][2] = (y+1)+"-"+(x+1); //rightBottom
                 
         if(x-1 >= 0){
             response.add(connectionsToNode[1][0]); //left

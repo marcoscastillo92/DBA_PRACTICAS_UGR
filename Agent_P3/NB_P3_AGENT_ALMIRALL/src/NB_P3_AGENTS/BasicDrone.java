@@ -41,6 +41,7 @@ public abstract class BasicDrone extends IntegratedAgent {
         out.setEncoding(_myCardID.getCardID());
         out.setPerformative(performative);
         this.send(out);
+        Info(out.toString());
     }
     
 
@@ -67,6 +68,7 @@ public abstract class BasicDrone extends IntegratedAgent {
         }
         out.setConversationId(conversationID);
         this.send(out);
+        Info(out.toString());
     }
 
     /**
@@ -84,6 +86,7 @@ public abstract class BasicDrone extends IntegratedAgent {
         out.setInReplyTo(replyWith);
         out.setConversationId(conversationID);
         this.send(out);
+        Info(out.toString());
     }
 
     /**
@@ -104,5 +107,6 @@ public abstract class BasicDrone extends IntegratedAgent {
         }
         out.setConversationId(conversationID);
         this.send(out);
+        Info(out.toString());
     }
 }
