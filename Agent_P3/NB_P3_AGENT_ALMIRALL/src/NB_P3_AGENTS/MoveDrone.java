@@ -300,6 +300,34 @@ public abstract class MoveDrone extends BasicDrone {
     }
 
     public void exitRequestedToListener(){
-        this.initMessage("ALMIRALL_LISTENER", "INFORM", "", ACLMessage.CANCEL, "INERTN", "INTERN");
+        this.initMessage("ALMIRALL_LISTENER", "INFORM", "", ACLMessage.CANCEL, "INERTN", name);
+    }
+
+    public void requestAction(String actionToPerform){
+        JsonObject action = new JsonObject();
+        action.add("action", actionToPerform);
+        String protocol;
+        int performative;
+
+        if ("Found".equals(actionToPerform)) {
+            protocol = "INFORM";
+            performative = ACLMessage.INFORM;
+            action.add("xPositionLudwig", xPositionLudwig);
+            action.add("yPositionLudwig", yPositionLudwig);
+            action.add("ludwigHeight", ludwigHeight);
+        } else {
+            protocol = "REGULAR";
+            performative = ACLMessage.PROPOSE;
+        }
+
+        this.initMessage("ALMIRALL_LISTENER", protocol, action.toString(), performative, "INERTN", name);
+
+        MessageTemplate t = MessageTemplate.MatchInReplyTo(name);
+        in = this.blockingReceive(t);
+
+        if(in.getPerformative() == ACLMessage.CONFIRM){
+            //TODO Send action to WorldManager if it's executable action
+        }
+        // TODO If it's executable action and is not "recharge" wait else send coins to ...
     }
 }

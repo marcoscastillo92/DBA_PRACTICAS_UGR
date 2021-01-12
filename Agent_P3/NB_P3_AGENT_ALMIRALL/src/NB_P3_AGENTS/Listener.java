@@ -4,9 +4,14 @@ import com.eclipsesource.json.*;
 import jade.lang.acl.ACLMessage;
 import YellowPages.YellowPages;
 import jade.lang.acl.MessageTemplate;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
+
+import java.util.*;
+
+class LudwigComparator implements Comparator<Node> {
+    public int compare(Node n1, Node n2) {
+        return (int)n1.getDistanceToRescuer() - (int)n2.getDistanceToRescuer();
+    }
+}
 
 public class Listener extends BasicDrone {
     //public String service, worldManager, conversationID, replyWith, id_problema;
@@ -17,6 +22,7 @@ public class Listener extends BasicDrone {
     JsonObject contentMessage;
     Set<String> shops;
     List<DroneInfo> drones;
+    PriorityQueue<Node> ludwigs;
     
     @Override
     public void setup(){
@@ -31,6 +37,7 @@ public class Listener extends BasicDrone {
         drones.add(new DroneInfo("ALMIRALL_SEEKER2"));
         drones.add(new DroneInfo("ALMIRALL_SEEKER3"));
         drones.add(new DroneInfo("ALMIRALL_RESCUER"));
+        ludwigs = new PriorityQueue<Node>(new LudwigComparator());
     }
     
     @Override
@@ -71,13 +78,46 @@ public class Listener extends BasicDrone {
         in = this.blockingReceive(t);
 
         if(in != null){
+            JsonObject response = new JsonObject(Json.parse(in.getContent()).asObject());
             if(in.getPerformative() == ACLMessage.CANCEL){
                 cancelRequested++;
                 if(cancelRequested == 3){
                     status = Status.CANCEL_WM;
                 }
+            }else if(in.getPerformative() == ACLMessage.INFORM){
+                //Ludwig founded
+                // TODO save position of Ludwig and queue by priority
+                int xPositionLudwig = response.get("xPositionLudwig").asInt();
+                int yPositionLudwig = response.get("yPositionLudwig").asInt();
+                int ludwigHeight = response.get("ludwigHeight").asInt();
+                double distanceToRescuer = calculateDistance(xPositionLudwig, yPositionLudwig, ludwigHeight);
+
+                Node node = new Node(yPositionLudwig+""+xPositionLudwig, xPositionLudwig, yPositionLudwig, ludwigHeight, distanceToRescuer);
+                ludwigs.add(node);
+
+                this.replyMessage("INFORM", ACLMessage.CONFIRM, "");
+
+            }else if(in.getPerformative() == ACLMessage.PROPOSE){
+                // TODO check if it's possible execute that action
+                boolean canExecute = true; //TODO Evaluate by funtion
+                if(canExecute) {
+                    this.replyMessage("INFORM", ACLMessage.CONFIRM, "");
+                }else{
+                    this.replyMessage("INFORM", ACLMessage.REJECT_PROPOSAL, "");
+                }
             }
         }
+    }
+
+    private double calculateDistance(int xPositionLudwig, int yPositionLudwig, int ludwigHeight) {
+        int xPositionRescuer = drones.get(3).getxPosition();
+        int yPositionRescuer = drones.get(3).getyPosition();
+        int heightRescuer = drones.get(3).getDroneHeight();
+        int dX = xPositionLudwig - xPositionRescuer;
+        int dY = yPositionLudwig - yPositionRescuer;
+        int dH = ludwigHeight - heightRescuer;
+
+        return (Math.sqrt(Math.pow(dX, 2)+Math.pow(dY, 2)) + dH);
     }
 
     /**
@@ -212,8 +252,7 @@ public class Listener extends BasicDrone {
                 System.out.println("No se ha podido empezar partida, se deberá solicitar de nuevo");
                 status = Status.CHECKOUT_LARVA;
             }
-        }
-        if(tries == 3){
+        }else if(tries == 3){
             status = Status.CHECKOUT_LARVA;
         }else{
             tries++;
@@ -284,24 +323,7 @@ public class Listener extends BasicDrone {
         contentMessage.add("ReplyWith", replyWith);
         System.out.println("REPLYWITH " + replyWith);
         contentMessage.add("Shops", shops.toString());
-        /*
-        contentMessage.add("xPosition", 1);
-        contentMessage.add("yPosition", 1);
-        contentMessage.add("name", "ALMIRALL_SEEKER1");
-        this.initMessage("ALMIRALL_SEEKER1", "REGULAR", contentMessage.toString(), ACLMessage.INFORM);
-        contentMessage.set("xPosition", 3);
-        contentMessage.set("yPosition", 3);
-        contentMessage.set("name", "ALMIRALL_SEEKER2");
-        this.initMessage("ALMIRALL_SEEKER2", "REGULAR", contentMessage.toString(), ACLMessage.INFORM);
-        contentMessage.set("xPosition", 6);
-        contentMessage.set("yPosition", 6);
-        contentMessage.set("name", "ALMIRALL_SEEKER3");
-        this.initMessage("ALMIRALL_SEEKER3", "REGULAR", contentMessage.toString(), ACLMessage.INFORM);
-        contentMessage.set("xPosition", 10);
-        contentMessage.set("yPosition", 10);
-        contentMessage.set("name", "ALMIRALL_RESCUER");
-        this.initMessage("ALMIRALL_RESCUER", "REGULAR", contentMessage.toString(), ACLMessage.INFORM);
-        */
+
         setDronePosition("ALMIRALL_SEEKER1", 1, 1);
         setDronePosition("ALMIRALL_SEEKER2", 3, 3);
         setDronePosition("ALMIRALL_SEEKER3", 6, 6);

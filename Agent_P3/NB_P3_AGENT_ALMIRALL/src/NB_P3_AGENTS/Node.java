@@ -17,6 +17,7 @@ public class Node {
     private final double y;
     private final int height;
     private boolean visited;
+    private double distanceToRescuer;
     int MAX_HEIGHT = 255;
 
     public Node(String id, double x, double y, int height) {
@@ -25,6 +26,15 @@ public class Node {
         this.y = y;
         this.height = height;
         this.visited = false;
+    }
+
+    public Node(String id, double x, double y, int height, double distanceToRescuer) {
+        this.id = id;
+        this.x = x;
+        this.y = y;
+        this.height = height;
+        this.visited = false;
+        this.distanceToRescuer = distanceToRescuer;
     }
 
     public String getId() {
@@ -42,6 +52,8 @@ public class Node {
     public int getHeight() {
         return height;
     }
+
+    public double getDistanceToRescuer() { return distanceToRescuer; }
     
     public boolean isVisited() {
         return this.visited;

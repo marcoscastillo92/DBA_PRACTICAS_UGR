@@ -45,7 +45,8 @@ public class Rescuer extends MoveDrone {
                 
             case EXIT:
                 Info("Se cierra el agente");
-                this.replyMessage("ANALYTICS", ACLMessage.CANCEL, "");
+                this.exitRequestedToListener();
+                //this.replyMessage("ANALYTICS", ACLMessage.CANCEL, "");
                 _exitRequested = true;
                 break;
                 
