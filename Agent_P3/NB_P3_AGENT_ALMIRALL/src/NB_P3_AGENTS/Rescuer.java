@@ -40,6 +40,9 @@ public class Rescuer extends MoveDrone {
                     this.wallet.add(in.getContent());
                 }
                 */
+                if(!shops.isEmpty()) {
+                    getProducts();
+                }
                 status = Status.EXIT;
                 break;
                 

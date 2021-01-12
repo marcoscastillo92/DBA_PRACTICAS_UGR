@@ -3,6 +3,7 @@ package NB_P3_AGENTS;
 import com.eclipsesource.json.Json;
 import com.eclipsesource.json.JsonObject;
 import com.eclipsesource.json.JsonArray;
+import com.eclipsesource.json.JsonValue;
 import jade.core.AID;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
@@ -10,11 +11,25 @@ import jade.lang.acl.MessageTemplate;
 import java.util.*;
 import java.util.stream.Collectors;
 
+class sensorComparator implements Comparator<Sensor> {
+    @Override
+    public int compare(Sensor s1, Sensor s2) 
+    { 
+        if (s1.getPrice() < s2.getPrice()) {
+            return 1;
+        } else if (s1.getPrice() > s2.getPrice()) {
+            return -1;
+        } else {
+            return 0;
+        }
+    } 
+}
+
 public abstract class MoveDrone extends BasicDrone {
     protected Status status;
     protected ArrayList<String> wallet;
     private int xPosition, yPosition, droneHeight, energy;
-    String[] shops;
+    List<String> shops;
     Graph<Node> graphMap;
     RouteFinder<Node> routeFinder;
     List<Node> route;
@@ -50,12 +65,15 @@ public abstract class MoveDrone extends BasicDrone {
             conversationID = conversationID.replace("\"", "");
             replyWith = contentObject.get("ReplyWith").toString();
             replyWith = replyWith.replace("\"", "");
+            
             String tiendas = contentObject.get("Shops").toString();
             tiendas = tiendas.replace("\"", "");
             tiendas = tiendas.replace("[", "");
             tiendas = tiendas.replace("]", "");
             tiendas = tiendas.replace(" ", "");
-            shops = tiendas.split(",");
+            String[] stores = tiendas.split(",");
+            shops = Arrays.asList(stores);
+            
             xPosition = contentObject.get("xPosition").asInt();
             yPosition = contentObject.get("yPosition").asInt();
 
@@ -150,6 +168,42 @@ public abstract class MoveDrone extends BasicDrone {
             }
         }
         return in;
+    }
+    
+    public JsonObject getProducts(){
+        JsonObject shopValues = new JsonObject();
+        JsonObject sensorValues = new JsonObject();
+ 
+        PriorityQueue<Sensor> products = new PriorityQueue<>(new sensorComparator());
+        
+        for (String shop : shops) {
+            this.initMessage(shop, "REGULAR", "{}", ACLMessage.QUERY_REF, conversationID, "RESCUER_BUY");
+            
+            in = this.blockingReceive();
+            if(in.getPerformative() == ACLMessage.INFORM) {
+                JsonObject replyObj = Json.parse(in.getContent()).asObject();
+                if(replyObj.names().contains("products")) {
+                    
+                    JsonArray jsonProducts = replyObj.get("products").asArray();
+                    
+                    for(JsonValue value: jsonProducts) {
+                        JsonObject sensorObject = value.asObject();
+                        String sensorName = sensorObject.get("reference").asString();
+                        int sensorPrice = sensorObject.get("price").asInt();
+                        products.add(new Sensor(shop, sensorName, sensorPrice));
+                    }
+                    
+                    Info("PRODUCTOS: " + products.toString());
+
+                }
+            }
+            else {
+                Info("Error en la consulta de la tienda"+in.getContent());
+            }
+
+        }
+        
+        return shopValues;
     }
     
     /**
@@ -312,9 +366,9 @@ public abstract class MoveDrone extends BasicDrone {
         if ("Found".equals(actionToPerform)) {
             protocol = "INFORM";
             performative = ACLMessage.INFORM;
-            action.add("xPositionLudwig", xPositionLudwig);
-            action.add("yPositionLudwig", yPositionLudwig);
-            action.add("ludwigHeight", ludwigHeight);
+            //action.add("xPositionLudwig", xPositionLudwig);
+            //action.add("yPositionLudwig", yPositionLudwig);
+            //action.add("ludwigHeight", ludwigHeight);
         } else {
             protocol = "REGULAR";
             performative = ACLMessage.PROPOSE;

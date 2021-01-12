@@ -102,6 +102,7 @@ public class Listener extends BasicDrone {
                 boolean canExecute = true; //TODO Evaluate by funtion
                 if(canExecute) {
                     this.replyMessage("INFORM", ACLMessage.CONFIRM, "");
+                    //Actualizar droneInfo
                 }else{
                     this.replyMessage("INFORM", ACLMessage.REJECT_PROPOSAL, "");
                 }
@@ -286,13 +287,6 @@ public class Listener extends BasicDrone {
      * @author Diego García
      */
     private void setDronePosition(String name, int x, int y) {
-        /*for(DroneInfo drone : drones) {
-            if(drone.getName().equals(name)) {
-                drone.setxPosition(x);
-                drone.setyPosition(y);
-                break;
-            }
-        }*/
         switch(name) {
             case "ALMIRALL_SEEKER1":
                 drones.get(0).setxPosition(x);
