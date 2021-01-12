@@ -18,7 +18,7 @@ public class Node {
     private final int height;
     private boolean visited;
     private double distanceToRescuer;
-    int MAX_HEIGHT = 255;
+    int MAX_HEIGHT = 256;
 
     public Node(String id, double x, double y, int height) {
         this.id = id;

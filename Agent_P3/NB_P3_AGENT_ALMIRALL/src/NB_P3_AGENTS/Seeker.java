@@ -55,7 +55,7 @@ public class Seeker extends MoveDrone {
             case EXIT:
                 Info("Se cierra el agente");
                 this.exitRequestedToListener();
-                //this.replyMessage("ANALYTICS", ACLMessage.CANCEL, "");
+                this.initMessage( _identitymanager, "ANALYTICS", "", ACLMessage.CANCEL, conversationID, replyWith);
                 _exitRequested = true;
                 break;
         }

@@ -62,6 +62,7 @@ public class Listener extends BasicDrone {
                 break;
             case CANCEL_WM:
                 status = Status.CHECKOUT_LARVA;
+                this.initMessage(worldManager, "ANALYTICS", "", ACLMessage.CANCEL, conversationID, replyWith);
                 break;
             case CHECKOUT_LARVA:
                 this.checkOut();
@@ -322,7 +323,15 @@ public class Listener extends BasicDrone {
         setDronePosition("ALMIRALL_SEEKER2", 3, 3);
         setDronePosition("ALMIRALL_SEEKER3", 6, 6);
         setDronePosition("ALMIRALL_RESCUER", 10, 10);
-        
+
+        this.initMessage("ALMIRALL_AWACS", "REGULAR", "", ACLMessage.QUERY_IF, conversationID, replyWith);
+
+        try{
+            Thread.sleep(5000);
+        }catch (Exception e){
+            System.out.println("Error al dormir listener : "+e);
+        }
+
         for(DroneInfo drone : drones) {
             contentMessage.add("xPosition", drone.getxPosition());
             contentMessage.add("yPosition", drone.getyPosition());
