@@ -1,5 +1,6 @@
 package NB_P3_AGENTS;
 
+import jade.lang.acl.ACLMessage;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -16,24 +17,36 @@ public class Seeker extends MoveDrone {
     public void plainExecute() {
         switch(status) {
             case LISTENNING:
+
                 Info("Esperando mensaje inicial del Listener");
-                if(this.listenInit()) {
+                keepAliveSession = this.listenForMessages();
+                if(keepAliveSession) {
                     status = Status.SUBSCRIBE_WM;
-                }
-                else {
+                } else {
+                    _exitRequested = true;
                     status = Status.EXIT;
                 }
                 break;
                 
             case SUBSCRIBE_WM:
-                this.checkIn();
-                this.subscribeByType("SEEKER");
-                status = Status.PLANNING;
+                keepAliveSession = this.checkIn();
+                keepAliveSession &= this.subscribeByType("SEEKER");
+                //this.requestAction("Found");
+                keepAliveSession &= this.loginWorld();
+                if(keepAliveSession){
+                    this.setupCurrentState();
+                    status = Status.PLANNING;
+                }else{
+                    _exitRequested = true;
+                    status = Status.EXIT;
+                }
+
                 break;
                 
             case PLANNING:
+                keepAliveSession = this.listenForMessages();
                 /* Enviar moneda
-                this.sendCoin("ALMIRALL_RESCUER");
+                this.sendCoin(droneNames.get("rescuer"));
                 */
                 /* Recibir moneda
                 in = this.blockingReceive();
@@ -43,13 +56,19 @@ public class Seeker extends MoveDrone {
                     this.wallet.add(in.getContent());
                 }
                 */
-                
+                if(keepAliveSession){
+                    //TODO
+                }else{
+                    _exitRequested = true;
+                    status = Status.EXIT;
+                }
                 status = Status.EXIT;
                 break;
 
-                
             case EXIT:
                 Info("Se cierra el agente");
+                this.exitRequestedToListener();
+                this.initMessage( _identitymanager, "ANALYTICS", "", ACLMessage.CANCEL, conversationID, replyWith);
                 _exitRequested = true;
                 break;
         }
