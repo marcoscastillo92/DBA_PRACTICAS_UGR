@@ -369,7 +369,7 @@ public abstract class MoveDrone extends BasicDrone {
     }
 
     public void exitRequestedToListener(){
-        this.initMessage("ALMIRALL_LISTENER", "ANALYTICS", "", ACLMessage.CANCEL, "INERTN", name);
+        this.initMessage(droneNames.get("listener"), "ANALYTICS", "", ACLMessage.CANCEL, "INERTN", name);
     }
 
     public void requestAction(String actionToPerform){
@@ -389,7 +389,7 @@ public abstract class MoveDrone extends BasicDrone {
             performative = ACLMessage.PROPOSE;
         }
 
-        this.initMessage("ALMIRALL_LISTENER", protocol, action.toString(), performative, "INERTN", name);
+        this.initMessage(droneNames.get("listener"), protocol, action.toString(), performative, "INERTN", name);
 
         MessageTemplate t = MessageTemplate.MatchInReplyTo(name);
         in = this.blockingReceive(t);
@@ -405,7 +405,7 @@ public abstract class MoveDrone extends BasicDrone {
         if(aux != null){
             Info("Mensaje interno recibido: " + aux.toString());
             if(aux.getPerformative() == ACLMessage.CANCEL && aux.getConversationId().equals("INTERN")){
-                //this.initMessage("ALMIRALL_LISTENER1", "ANALYTICS", "", ACLMessage.CONFIRM, "INERTN", "INTERN");
+                //this.initMessage(droneNames.get("listener"), "ANALYTICS", "", ACLMessage.CONFIRM, "INERTN", "INTERN");
                 return false;
             }else{
                 return this.listenInit(aux);

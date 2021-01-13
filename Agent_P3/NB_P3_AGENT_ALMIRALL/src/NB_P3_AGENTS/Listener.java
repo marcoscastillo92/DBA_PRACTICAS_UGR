@@ -14,8 +14,6 @@ class LudwigComparator implements Comparator<Node> {
 }
 
 public class Listener extends BasicDrone {
-    //public String service, worldManager, conversationID, replyWith, id_problema;
-    //ACLMessage out, in;
     YellowPages yp;
     Status status;
     int tries, cancelRequested;
@@ -31,12 +29,12 @@ public class Listener extends BasicDrone {
         tries = 0;
         cancelRequested = 0;
         contentMessage = new JsonObject();
-        name = "ALMIRALL_LISTENER";
+        name = droneNames.get("listener");
         drones = new ArrayList<>();
-        drones.add(new DroneInfo("ALMIRALL_SEEKER1"));
-        drones.add(new DroneInfo("ALMIRALL_SEEKER2"));
-        drones.add(new DroneInfo("ALMIRALL_SEEKER3"));
-        drones.add(new DroneInfo("ALMIRALL_RESCUER"));
+        drones.add(new DroneInfo(droneNames.get("seeker1")));
+        drones.add(new DroneInfo(droneNames.get("seeker2")));
+        drones.add(new DroneInfo(droneNames.get("seeker3")));
+        drones.add(new DroneInfo(droneNames.get("rescuer")));
         ludwigs = new PriorityQueue<Node>(new LudwigComparator());
         worldManager = "";
         conversationID = "";
@@ -72,7 +70,7 @@ public class Listener extends BasicDrone {
                 status = Status.CHECKOUT_LARVA;
                 if(cancelRequested < 1) {
                     MessageTemplate t = MessageTemplate.MatchConversationId("INTERN");
-                    this.initMessage("ALMIRALL_SEEKER1", "ANALYTICS", contentMessage.toString(), ACLMessage.CANCEL, "INTERN", "");
+                    this.initMessage(droneNames.get("seeker1"), "ANALYTICS", contentMessage.toString(), ACLMessage.CANCEL, "INTERN", "");
                     in = this.blockingReceive(t);
                     if (in != null && in.getPerformative() == ACLMessage.CANCEL) {
                         this.initMessage(worldManager, "ANALYTICS", "", ACLMessage.CANCEL, conversationID, replyWith);
@@ -81,12 +79,12 @@ public class Listener extends BasicDrone {
                         Info("No se ha podido hacer el checkout de WM: " + in.toString());
                     }
                 }else{
-                    this.initMessage("ALMIRALL_SEEKER1", "ANALYTICS", contentMessage.toString(), ACLMessage.CANCEL, "INTERN", "");
+                    this.initMessage(droneNames.get("seeker1"), "ANALYTICS", contentMessage.toString(), ACLMessage.CANCEL, "INTERN", "");
                 }
                 break;
             case CHECKOUT_LARVA:
                 Info("Mandamos mensaje de CHECKOUT LARVA a todos los DRONES");
-                this.initMessage("ALMIRALL_SEEKER1", "ANALYTICS", contentMessage.toString(), ACLMessage.CANCEL, "INTERN", "");
+                this.initMessage(droneNames.get("seeker1"), "ANALYTICS", contentMessage.toString(), ACLMessage.CANCEL, "INTERN", "");
                 MessageTemplate ta = MessageTemplate.MatchReplyWith("INTERN");
                 in = this.blockingReceive(ta);
                 this.checkOut();
@@ -106,7 +104,7 @@ public class Listener extends BasicDrone {
             JsonObject response = new JsonObject(Json.parse(in.getContent()).asObject());
             if(in.getPerformative() == ACLMessage.CANCEL){
                 cancelRequested++;
-                if(cancelRequested == 3){
+                if(cancelRequested >= 3){
                     status = Status.CANCEL_WM;
                 }
             }else if(in.getPerformative() == ACLMessage.INFORM){

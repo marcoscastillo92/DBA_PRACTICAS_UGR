@@ -46,7 +46,7 @@ public class Seeker extends MoveDrone {
             case PLANNING:
                 keepAliveSession = this.listenForMessages();
                 /* Enviar moneda
-                this.sendCoin("ALMIRALL_RESCUER");
+                this.sendCoin(droneNames.get("rescuer"));
                 */
                 /* Recibir moneda
                 in = this.blockingReceive();

@@ -4,12 +4,15 @@ import IntegratedAgent.IntegratedAgent;
 import jade.core.AID;
 import jade.lang.acl.ACLMessage;
 
+import java.util.*;
+
 enum Status {
     CHECKIN_LARVA, SUBSCRIBE_WM, SUBSCRIBE_TYPE, LISTENNING, PLANNING, CANCEL_WM, CHECKOUT_LARVA, EXIT
 }
 
 public abstract class BasicDrone extends IntegratedAgent {
     public String service, worldManager, conversationID, replyWith, id_problema;
+    public java.util.Map<String,String> droneNames;
     ACLMessage out, in;
     Map map;
     String name;
@@ -23,6 +26,12 @@ public abstract class BasicDrone extends IntegratedAgent {
         _identitymanager = "Sphinx";
         _exitRequested = false;
         map = new Map();
+        droneNames = new HashMap<>();
+        droneNames.put("listener", "ALMIRALL_LISTENER");
+        droneNames.put("seeker1", "ALMIRALL_SEEKER1");
+        droneNames.put("seeker2", "ALMIRALL_SEEKER2");
+        droneNames.put("seeker3", "ALMIRALL_SEEKER3");
+        droneNames.put("rescuer", "ALMIRALL_RESCUER");
     }
     
     /**
