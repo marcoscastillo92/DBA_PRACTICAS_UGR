@@ -34,8 +34,10 @@ public class Seeker extends MoveDrone {
                 //this.requestAction("Found");
                 keepAliveSession &= this.loginWorld();
                 if(keepAliveSession){
+                    this.getProducts();
                     this.setupCurrentState();
-                    status = Status.PLANNING;
+                    //status = Status.PLANNING;
+                    status = Status.EXIT;
                 }else{
                     _exitRequested = true;
                     status = Status.EXIT;
@@ -69,6 +71,7 @@ public class Seeker extends MoveDrone {
                 Info("Se cierra el agente");
                 this.exitRequestedToListener();
                 this.initMessage( _identitymanager, "ANALYTICS", "", ACLMessage.CANCEL, conversationID, replyWith);
+                this.initMessage( "Almirall", "ANALYTICS", "", ACLMessage.CANCEL, conversationID, replyWith);
                 _exitRequested = true;
                 break;
         }

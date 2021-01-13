@@ -15,9 +15,9 @@ class sensorComparator implements Comparator<Sensor> {
     @Override
     public int compare(Sensor s1, Sensor s2) 
     { 
-        if (s1.getPrice() < s2.getPrice()) {
+        if (s1.getPrice() > s2.getPrice()) {
             return 1;
-        } else if (s1.getPrice() > s2.getPrice()) {
+        } else if (s1.getPrice() < s2.getPrice()) {
             return -1;
         } else {
             return 0;
@@ -64,6 +64,7 @@ public abstract class MoveDrone extends BasicDrone {
                 map.loadMap(contentObject.get("map").asObject());
                 setUpAStarPathfinding();
                 name = contentObject.get("name").toString();
+                name = name.replace("\"", "");
                 worldManager = contentObject.get("WorldManager").toString();
                 conversationID = contentObject.get("ConversationID").toString();
                 conversationID = conversationID.replace("\"", "");
@@ -401,7 +402,7 @@ public abstract class MoveDrone extends BasicDrone {
     }
 
     public boolean listenForMessages(){
-        ACLMessage aux = this.blockingReceive(5000);
+        ACLMessage aux = this.blockingReceive();
         if(aux != null){
             Info("Mensaje interno recibido: " + aux.toString());
             if(aux.getPerformative() == ACLMessage.CANCEL && aux.getConversationId().equals("INTERN")){

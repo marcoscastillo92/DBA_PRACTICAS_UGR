@@ -32,7 +32,10 @@ public class Rescuer extends MoveDrone {
                 keepAliveSession = this.checkIn();
                 keepAliveSession &= this.subscribeByType("RESCUER");
                 if(keepAliveSession){
-                    status = Status.PLANNING;
+                    this.getProducts();
+                    this.setupCurrentState();
+                    //status = Status.PLANNING;
+                    status = Status.EXIT;
                 }else{
                     _exitRequested = true;
                     status = Status.EXIT;
@@ -64,6 +67,7 @@ public class Rescuer extends MoveDrone {
                 Info("Se cierra el agente");
                 this.exitRequestedToListener();
                 this.initMessage( _identitymanager, "ANALYTICS", "", ACLMessage.CANCEL, conversationID, replyWith);
+                this.initMessage( "Almirall", "ANALYTICS", "", ACLMessage.CANCEL, conversationID, replyWith);
                 _exitRequested = true;
                 break;
                 

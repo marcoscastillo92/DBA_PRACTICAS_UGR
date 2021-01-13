@@ -59,7 +59,6 @@ public class Listener extends BasicDrone {
                 break;
             case LISTENNING:
                 //status = Status.PLANNING;
-                sendInitMessage();
                 listenForMessages();
                 break;
             case PLANNING:
@@ -79,7 +78,7 @@ public class Listener extends BasicDrone {
                         Info("No se ha podido hacer el checkout de WM: " + in.toString());
                     }
                 }else{
-                    this.initMessage(droneNames.get("seeker1"), "ANALYTICS", contentMessage.toString(), ACLMessage.CANCEL, "INTERN", "");
+                    this.initMessage(_identitymanager, "ANALYTICS", contentMessage.toString(), ACLMessage.CANCEL, "INTERN", "");
                 }
                 break;
             case CHECKOUT_LARVA:
@@ -95,7 +94,19 @@ public class Listener extends BasicDrone {
                 break;
         }
     }
-
+    
+    private boolean canExecuteMove(String agent, String move) {
+        boolean canExecute = false;
+        
+        for(DroneInfo drone : drones) {
+            if(!agent.equals(drone.getName())) {
+                
+            }
+        }
+        
+        return canExecute;
+    }
+    
     private void listenForMessages() {
         MessageTemplate t = MessageTemplate.MatchConversationId("INTERN");
         in = this.blockingReceive(t);
@@ -121,9 +132,7 @@ public class Listener extends BasicDrone {
                 this.replyMessage("INFORM", ACLMessage.CONFIRM, "");
 
             }else if(in.getPerformative() == ACLMessage.PROPOSE){
-                // TODO check if it's possible execute that action
-                boolean canExecute = true; //TODO Evaluate by funtion
-                if(canExecute) {
+                if(canExecuteMove("drone", in.getContent())) {
                     this.replyMessage("INFORM", ACLMessage.CONFIRM, "");
                     //Actualizar droneInfo
                 }else{
@@ -152,7 +161,7 @@ public class Listener extends BasicDrone {
      * @return ACLMessage respuesta
      */
     public ACLMessage checkIn(){
-        System.out.println("Intenta hacer el checkin en Larva");
+        Info("Intenta hacer el checkin en Larva");
         if (!checkedInLarva) {
             this.initMessage(_identitymanager, "ANALYTICS", "", ACLMessage.SUBSCRIBE);
 
@@ -231,7 +240,7 @@ public class Listener extends BasicDrone {
             String subscribe_world = "{\"problem\":\""+id_problema+"\"}";
             this.initMessage(worldManager, "ANALYTICS", subscribe_world, ACLMessage.SUBSCRIBE);
 
-            in = this.blockingReceive(10000);
+            in = this.blockingReceive();
             System.out.println("RESPUESTA SUSCRIPCION WorldManager: "+in);
             if(in != null){
                 if(in.getPerformative() == ACLMessage.CONFIRM || in.getPerformative() == ACLMessage.INFORM){
@@ -373,13 +382,13 @@ public class Listener extends BasicDrone {
 
         this.initMessage("ALMIRALL_AWACS", "REGULAR", "", ACLMessage.QUERY_IF, conversationID, replyWith);
 
-        try{
-            Thread.sleep(5000);
-        }catch (Exception e){
-            System.out.println("Error al dormir listener : "+e);
-        }
-
         for(DroneInfo drone : drones) {
+            try{
+                Thread.sleep(5000);
+            }catch (Exception e){
+                System.out.println("Error al dormir listener : "+e);
+            }
+            
             contentMessage.add("xPosition", drone.getxPosition());
             contentMessage.add("yPosition", drone.getyPosition());
             contentMessage.add("name", drone.getName());
