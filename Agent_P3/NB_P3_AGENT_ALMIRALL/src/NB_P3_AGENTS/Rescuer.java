@@ -31,6 +31,7 @@ public class Rescuer extends MoveDrone {
             case SUBSCRIBE_WM:
                 keepAliveSession = this.checkIn();
                 keepAliveSession &= this.subscribeByType("RESCUER");
+                keepAliveSession &= this.loginWorld();
                 if(keepAliveSession){
                     this.getProducts();
                     this.setupCurrentState();
@@ -52,6 +53,11 @@ public class Rescuer extends MoveDrone {
                     this.wallet.add(in.getContent());
                 }
                 */
+                try{
+                    Thread.sleep(10000);
+                }catch (Exception e){
+                    Info("Exception sleep: " + e);
+                }
                 if(keepAliveSession) {
                     if (!shops.isEmpty()) {
                         getProducts();
@@ -66,9 +72,6 @@ public class Rescuer extends MoveDrone {
             case EXIT:
                 Info("Se cierra el agente");
                 this.exitRequestedToListener();
-                this.initMessage( _identitymanager, "ANALYTICS", "", ACLMessage.CANCEL, conversationID, replyWith);
-                this.initMessage( "Almirall", "ANALYTICS", "", ACLMessage.CANCEL, conversationID, replyWith);
-                _exitRequested = true;
                 break;
                 
         }

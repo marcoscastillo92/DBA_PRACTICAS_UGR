@@ -58,6 +58,11 @@ public class Seeker extends MoveDrone {
                     this.wallet.add(in.getContent());
                 }
                 */
+                try{
+                    Thread.sleep(10000);
+                }catch (Exception e){
+                    Info("Exception sleep: " + e);
+                }
                 if(keepAliveSession){
                     //TODO
                 }else{
@@ -70,9 +75,6 @@ public class Seeker extends MoveDrone {
             case EXIT:
                 Info("Se cierra el agente");
                 this.exitRequestedToListener();
-                this.initMessage( _identitymanager, "ANALYTICS", "", ACLMessage.CANCEL, conversationID, replyWith);
-                this.initMessage( "Almirall", "ANALYTICS", "", ACLMessage.CANCEL, conversationID, replyWith);
-                _exitRequested = true;
                 break;
         }
     }

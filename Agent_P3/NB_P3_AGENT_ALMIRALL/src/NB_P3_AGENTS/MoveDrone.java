@@ -183,37 +183,38 @@ public abstract class MoveDrone extends BasicDrone {
     
     public JsonObject getProducts(){
         JsonObject shopValues = new JsonObject();
-        JsonObject sensorValues = new JsonObject();
- 
+
         PriorityQueue<Sensor> products = new PriorityQueue<>(new sensorComparator());
-        
-        for (String shop : shops) {
-            this.initMessage(shop, "REGULAR", "{}", ACLMessage.QUERY_REF, conversationID, "RESCUER_BUY");
-            
-            in = this.blockingReceive();
-            if(in.getPerformative() == ACLMessage.INFORM) {
-                JsonObject replyObj = Json.parse(in.getContent()).asObject();
-                if(replyObj.names().contains("products")) {
-                    
-                    JsonArray jsonProducts = replyObj.get("products").asArray();
-                    
-                    for(JsonValue value: jsonProducts) {
-                        JsonObject sensorObject = value.asObject();
-                        String sensorName = sensorObject.get("reference").asString();
-                        int sensorPrice = sensorObject.get("price").asInt();
-                        products.add(new Sensor(shop, sensorName, sensorPrice));
+        if(!shops.isEmpty()) {
+            for (String shop : shops) {
+                this.initMessage(shop, "REGULAR", "{}", ACLMessage.QUERY_REF, conversationID, "RESCUER_BUY");
+
+                in = this.blockingReceive();
+                if (in.getPerformative() == ACLMessage.INFORM) {
+                    JsonObject replyObj = Json.parse(in.getContent()).asObject();
+                    if (replyObj.names().contains("products")) {
+
+                        JsonArray jsonProducts = replyObj.get("products").asArray();
+
+                        for (JsonValue value : jsonProducts) {
+                            JsonObject sensorObject = value.asObject();
+                            String sensorName = sensorObject.get("reference").asString();
+                            int sensorPrice = sensorObject.get("price").asInt();
+                            products.add(new Sensor(shop, sensorName, sensorPrice));
+                        }
+
+                        Info("PRODUCTOS: " + products.toString());
+
                     }
-                    
-                    Info("PRODUCTOS: " + products.toString());
-
+                } else {
+                    Info("Error en la consulta de la tienda" + in.getContent());
                 }
-            }
-            else {
-                Info("Error en la consulta de la tienda"+in.getContent());
-            }
 
+            }
+        } else {
+            Info("Se ha intentado consultar la tienda sin tener el id de la tienda: " + in.toString());
+            status = Status.EXIT;
         }
-        
         return shopValues;
     }
     
@@ -370,7 +371,12 @@ public abstract class MoveDrone extends BasicDrone {
     }
 
     public void exitRequestedToListener(){
-        this.initMessage(droneNames.get("listener"), "ANALYTICS", "", ACLMessage.CANCEL, "INERTN", name);
+        this.initMessage(droneNames.get("listener"), "ANALYTICS", "", ACLMessage.CANCEL, "INTERN", name);
+        in = this.blockingReceive();
+        if(in.getPerformative() == ACLMessage.CONFIRM){
+            this.initMessage( _identitymanager, "ANALYTICS", "", ACLMessage.CANCEL, conversationID, replyWith);
+            _exitRequested = true;
+        }
     }
 
     public void requestAction(String actionToPerform){
@@ -390,7 +396,7 @@ public abstract class MoveDrone extends BasicDrone {
             performative = ACLMessage.PROPOSE;
         }
 
-        this.initMessage(droneNames.get("listener"), protocol, action.toString(), performative, "INERTN", name);
+        this.initMessage(droneNames.get("listener"), protocol, action.toString(), performative, "INTERN", name);
 
         MessageTemplate t = MessageTemplate.MatchInReplyTo(name);
         in = this.blockingReceive(t);
@@ -406,7 +412,7 @@ public abstract class MoveDrone extends BasicDrone {
         if(aux != null){
             Info("Mensaje interno recibido: " + aux.toString());
             if(aux.getPerformative() == ACLMessage.CANCEL && aux.getConversationId().equals("INTERN")){
-                //this.initMessage(droneNames.get("listener"), "ANALYTICS", "", ACLMessage.CONFIRM, "INERTN", "INTERN");
+                //this.initMessage(droneNames.get("listener"), "ANALYTICS", "", ACLMessage.CONFIRM, "INTERN", "INTERN");
                 return false;
             }else{
                 return this.listenInit(aux);

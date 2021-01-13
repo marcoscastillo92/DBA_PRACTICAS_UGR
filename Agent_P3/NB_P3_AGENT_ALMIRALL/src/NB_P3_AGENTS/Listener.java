@@ -36,9 +36,6 @@ public class Listener extends BasicDrone {
         drones.add(new DroneInfo(droneNames.get("seeker3")));
         drones.add(new DroneInfo(droneNames.get("rescuer")));
         ludwigs = new PriorityQueue<Node>(new LudwigComparator());
-        worldManager = "";
-        conversationID = "";
-        replyWith = "";
         subscribed = false;
         loggedInWorld = false;
         checkedInLarva = false;
@@ -67,25 +64,11 @@ public class Listener extends BasicDrone {
                 break;
             case CANCEL_WM:
                 status = Status.CHECKOUT_LARVA;
-                if(cancelRequested < 1) {
-                    MessageTemplate t = MessageTemplate.MatchConversationId("INTERN");
-                    this.initMessage(droneNames.get("seeker1"), "ANALYTICS", contentMessage.toString(), ACLMessage.CANCEL, "INTERN", "");
-                    in = this.blockingReceive(t);
-                    if (in != null && in.getPerformative() == ACLMessage.CANCEL) {
-                        this.initMessage(worldManager, "ANALYTICS", "", ACLMessage.CANCEL, conversationID, replyWith);
-                        status = Status.CHECKOUT_LARVA;
-                    } else {
-                        Info("No se ha podido hacer el checkout de WM: " + in.toString());
-                    }
-                }else{
-                    this.initMessage(_identitymanager, "ANALYTICS", contentMessage.toString(), ACLMessage.CANCEL, "INTERN", "");
-                }
+                this.initMessage(worldManager, "ANALYTICS", "", ACLMessage.CANCEL, conversationID, replyWith);
+                status = Status.CHECKOUT_LARVA;
                 break;
             case CHECKOUT_LARVA:
                 Info("Mandamos mensaje de CHECKOUT LARVA a todos los DRONES");
-                this.initMessage(droneNames.get("seeker1"), "ANALYTICS", contentMessage.toString(), ACLMessage.CANCEL, "INTERN", "");
-                MessageTemplate ta = MessageTemplate.MatchReplyWith("INTERN");
-                in = this.blockingReceive(ta);
                 this.checkOut();
                 break;
             case EXIT:
@@ -112,13 +95,14 @@ public class Listener extends BasicDrone {
         in = this.blockingReceive(t);
 
         if(in != null){
-            JsonObject response = new JsonObject(Json.parse(in.getContent()).asObject());
             if(in.getPerformative() == ACLMessage.CANCEL){
+                this.replyMessage("ANALITYCS", ACLMessage.CONFIRM, "");
                 cancelRequested++;
-                if(cancelRequested >= 3){
+                if(cancelRequested > 3){
                     status = Status.CANCEL_WM;
                 }
             }else if(in.getPerformative() == ACLMessage.INFORM){
+                JsonObject response = new JsonObject(Json.parse(in.getContent()).asObject());
                 //Ludwig founded
                 // TODO save position of Ludwig and queue by priority
                 int xPositionLudwig = response.get("xPositionLudwig").asInt();
@@ -257,7 +241,14 @@ public class Listener extends BasicDrone {
 
                         shops = yp.queryProvidersofService("shop@"+conversationID);
                         if (!shops.isEmpty()) {
-                            System.out.println("TIENDAS: " + shops);
+                            Info("########################## TIENDAS CON SHOPS@: " + shops);
+                        }else{
+                            shops = yp.queryProvidersofService(conversationID);
+                            if(!shops.isEmpty()){
+                                Info("########################## TIENDAS SIN SHOPS@: " + shops);
+                            }else{
+                                Info("Shops vacías: " +shops);
+                            }
                         }
 
                         status = Status.SUBSCRIBE_TYPE;
