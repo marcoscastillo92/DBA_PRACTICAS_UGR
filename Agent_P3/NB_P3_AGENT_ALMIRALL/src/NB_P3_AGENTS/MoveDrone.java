@@ -34,7 +34,6 @@ public abstract class MoveDrone extends BasicDrone {
     RouteFinder<Node> routeFinder;
     List<Node> route;
     JsonObject currentState;
-    Boolean subscribed;
     Node objectiveFounded;
     
     @Override
@@ -44,6 +43,9 @@ public abstract class MoveDrone extends BasicDrone {
         currentState = new JsonObject();
         energy = 10;
         subscribed = false;
+        loggedInWorld = false;
+        checkedInLarva = false;
+        keepAliveSession = true;
         objectiveFounded = new Node("11-1", 1, 11, 239); //PARA MOCKUP se ha de hacer bien cuando se encuentre un Ludwig
     }
     
@@ -52,61 +54,66 @@ public abstract class MoveDrone extends BasicDrone {
      * @return true si ha conseguido el mapa
      * @author Diego Garcia Aurelio
      */
-    boolean listenInit() {
-        in = this.blockingReceive();
-        String content = in.getContent();
-        
-        if(content.contains("map")) {
-            Info("Recibido mapa del listening!");
-            JsonObject contentObject = new JsonObject(Json.parse(in.getContent()).asObject());
-            map.loadMap(contentObject.get("map").asObject());
-            setUpAStarPathfinding();
-            name = contentObject.get("name").toString();
-            worldManager = contentObject.get("WorldManager").toString();
-            conversationID = contentObject.get("ConversationID").toString();
-            conversationID = conversationID.replace("\"", "");
-            replyWith = contentObject.get("ReplyWith").toString();
-            replyWith = replyWith.replace("\"", "");
-            
-            String tiendas = contentObject.get("Shops").toString();
-            tiendas = tiendas.replace("\"", "");
-            tiendas = tiendas.replace("[", "");
-            tiendas = tiendas.replace("]", "");
-            tiendas = tiendas.replace(" ", "");
-            String[] stores = tiendas.split(",");
-            shops = Arrays.asList(stores);
-            
-            xPosition = contentObject.get("xPosition").asInt();
-            yPosition = contentObject.get("yPosition").asInt();
+    boolean listenInit(ACLMessage in) {
+        if(in != null) {
+            String content = in.getContent();
 
-            return true;
+            if (content.contains("map")) {
+                Info("Recibido mapa del listening!");
+                JsonObject contentObject = new JsonObject(Json.parse(in.getContent()).asObject());
+                map.loadMap(contentObject.get("map").asObject());
+                setUpAStarPathfinding();
+                name = contentObject.get("name").toString();
+                worldManager = contentObject.get("WorldManager").toString();
+                conversationID = contentObject.get("ConversationID").toString();
+                conversationID = conversationID.replace("\"", "");
+                replyWith = contentObject.get("ReplyWith").toString();
+                replyWith = replyWith.replace("\"", "");
+
+                String tiendas = contentObject.get("Shops").toString();
+                tiendas = tiendas.replace("\"", "");
+                tiendas = tiendas.replace("[", "");
+                tiendas = tiendas.replace("]", "");
+                tiendas = tiendas.replace(" ", "");
+                String[] stores = tiendas.split(",");
+                shops = Arrays.asList(stores);
+
+                xPosition = contentObject.get("xPosition").asInt();
+                yPosition = contentObject.get("yPosition").asInt();
+
+                return true;
+            }
         }
-        
         return false;
     }
 
     public boolean loginWorld() {
-        JsonObject loginJson = new JsonObject();
-        JsonArray sensors = new JsonArray();
+        if(!loggedInWorld) {
+            JsonObject loginJson = new JsonObject();
+            JsonArray sensors = new JsonArray();
 
-        loginJson.add("operation","login");
-        loginJson.add("attach", sensors);
-        loginJson.add("posx", xPosition);
-        loginJson.add("posy", yPosition);
+            loginJson.add("operation", "login");
+            loginJson.add("attach", sensors);
+            loginJson.add("posx", xPosition);
+            loginJson.add("posy", yPosition);
 
-        this.replyMessage("REGULAR", ACLMessage.REQUEST, loginJson.toString(), name);
-        //this.initMessage(worldManager, "REGULAR", loginJson.toString(), ACLMessage.REQUEST, conversationID, replyWith);
-        MessageTemplate t = MessageTemplate.MatchInReplyTo(name);
-        in = this.blockingReceive(t);
-        if(in.getPerformative() != ACLMessage.REFUSE && in.getPerformative() != ACLMessage.FAILURE){
-            Info("Login en mundo correcto, iniciado en la posición ["+xPosition+", "+yPosition+"]");
-            conversationID = in.getConversationId();
-            replyWith = in.getReplyWith();
-            droneHeight = graphMap.getNode(yPosition+"-"+xPosition).getHeight();
-            return true;
+            this.replyMessage("REGULAR", ACLMessage.REQUEST, loginJson.toString(), name);
+            //this.initMessage(worldManager, "REGULAR", loginJson.toString(), ACLMessage.REQUEST, conversationID, replyWith);
+            MessageTemplate t = MessageTemplate.MatchInReplyTo(name);
+            in = this.blockingReceive(t);
+            if (in.getPerformative() != ACLMessage.REFUSE && in.getPerformative() != ACLMessage.FAILURE) {
+                Info("Login en mundo correcto, iniciado en la posición [" + xPosition + ", " + yPosition + "]");
+                loggedInWorld = true;
+                conversationID = in.getConversationId();
+                replyWith = in.getReplyWith();
+                droneHeight = graphMap.getNode(yPosition + "-" + xPosition).getHeight();
+                return true;
+            }
+            Info("Fallo en login en el mundo. Mensaje: " + in.getContent());
+            status = Status.EXIT;
+        }else{
+            Info("Ya logueado en el mundo e intenta volver a hacerlo: " + in.toString());
         }
-        Info("Fallo en login en el mundo. Mensaje: "+in.getContent());
-        status = Status.EXIT;
 
         return false;
     }
@@ -118,7 +125,7 @@ public abstract class MoveDrone extends BasicDrone {
      * @author Marcos Castillo
      * @modifiedBy Juan Pablo
      */
-    public ACLMessage subscribeByType(String type){
+    public boolean subscribeByType(String type){
         int tries = 0;
         String content;
         if(!subscribed) {
@@ -157,9 +164,10 @@ public abstract class MoveDrone extends BasicDrone {
                         energy = replyObj.get("energy").asInt();
                     }
                     subscribed = true;
+                    return true;
                     //status = Status.EXIT;
                 } else {
-                    System.out.println("No se ha podido empezar partida, se deberá solicitar de nuevo");
+                    System.out.println("No se ha podido empezar partida, se deberá solicitar de nuevo: " + in.toString());
                     status = Status.EXIT;
                 }
             }
@@ -169,7 +177,7 @@ public abstract class MoveDrone extends BasicDrone {
                 tries++;
             }
         }
-        return in;
+        return false;
     }
     
     public JsonObject getProducts(){
@@ -213,21 +221,26 @@ public abstract class MoveDrone extends BasicDrone {
      * @return ACLMessage
      * @author Marcos Castillo
      */
-    public ACLMessage checkIn(){
+    public boolean checkIn(){
         System.out.println("Intenta hacer el checkin en Larva");
-        this.initMessage(_identitymanager, "ANALYTICS", "", ACLMessage.SUBSCRIBE, conversationID, name);
+        if (!checkedInLarva) {
+            this.initMessage(_identitymanager, "ANALYTICS", "", ACLMessage.SUBSCRIBE, conversationID, name);
 
-        MessageTemplate t = MessageTemplate.MatchInReplyTo(name);
-        in = this.blockingReceive(t);
-        System.out.println("RESPUESTA CHECKIN: "+in);
-        if(in.getPerformative() == ACLMessage.CONFIRM || in.getPerformative() == ACLMessage.INFORM){
-            Info("Checkin confirmed in the platform");
-        }else{
-            System.out.println("No se ha podido ejecutar el login correctamente, saliendo de la ejecución.");
-            //this.abortSession();
-            status = Status.EXIT;
+            MessageTemplate t = MessageTemplate.MatchInReplyTo(name);
+            in = this.blockingReceive(t);
+            System.out.println("RESPUESTA CHECKIN: " + in);
+            if (in.getPerformative() == ACLMessage.CONFIRM || in.getPerformative() == ACLMessage.INFORM) {
+                Info("Checkin confirmed in the platform");
+                return true;
+            } else {
+                System.out.println("No se ha podido ejecutar el login correctamente, saliendo de la ejecución.");
+                //this.abortSession();
+                status = Status.EXIT;
+            }
+        } else {
+            Info("Está logueado en LARVA e intenta volver a loguearse: " + in.toString());
         }
-        return in;
+        return false;
     }
     
     public void sendCoin(String receiver) {
@@ -356,7 +369,7 @@ public abstract class MoveDrone extends BasicDrone {
     }
 
     public void exitRequestedToListener(){
-        this.initMessage("ALMIRALL_LISTENER", "INFORM", "", ACLMessage.CANCEL, "INERTN", name);
+        this.initMessage("ALMIRALL_LISTENER", "ANALYTICS", "", ACLMessage.CANCEL, "INERTN", name);
     }
 
     public void requestAction(String actionToPerform){
@@ -385,5 +398,19 @@ public abstract class MoveDrone extends BasicDrone {
             //TODO Send action to WorldManager if it's executable action
         }
         // TODO If it's executable action and is not "recharge" wait else send coins to ...
+    }
+
+    public boolean listenForMessages(){
+        ACLMessage aux = this.blockingReceive(5000);
+        if(aux != null){
+            Info("Mensaje interno recibido: " + aux.toString());
+            if(aux.getPerformative() == ACLMessage.CANCEL && aux.getConversationId().equals("INTERN")){
+                //this.initMessage("ALMIRALL_LISTENER1", "ANALYTICS", "", ACLMessage.CONFIRM, "INERTN", "INTERN");
+                return false;
+            }else{
+                return this.listenInit(aux);
+            }
+        }
+        return true;
     }
 }

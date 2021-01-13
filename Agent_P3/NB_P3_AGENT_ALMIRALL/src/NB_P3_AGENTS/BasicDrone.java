@@ -13,6 +13,7 @@ public abstract class BasicDrone extends IntegratedAgent {
     ACLMessage out, in;
     Map map;
     String name;
+    Boolean subscribed, loggedInWorld, checkedInLarva, keepAliveSession;
     
     @Override
     public void setup(){

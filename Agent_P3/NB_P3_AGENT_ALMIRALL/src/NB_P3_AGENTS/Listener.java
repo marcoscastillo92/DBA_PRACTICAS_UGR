@@ -38,6 +38,13 @@ public class Listener extends BasicDrone {
         drones.add(new DroneInfo("ALMIRALL_SEEKER3"));
         drones.add(new DroneInfo("ALMIRALL_RESCUER"));
         ludwigs = new PriorityQueue<Node>(new LudwigComparator());
+        worldManager = "";
+        conversationID = "";
+        replyWith = "";
+        subscribed = false;
+        loggedInWorld = false;
+        checkedInLarva = false;
+        shops = new HashSet<String>();
     }
     
     @Override
@@ -54,6 +61,7 @@ public class Listener extends BasicDrone {
                 break;
             case LISTENNING:
                 //status = Status.PLANNING;
+                sendInitMessage();
                 listenForMessages();
                 break;
             case PLANNING:
@@ -62,9 +70,25 @@ public class Listener extends BasicDrone {
                 break;
             case CANCEL_WM:
                 status = Status.CHECKOUT_LARVA;
-                this.initMessage(worldManager, "ANALYTICS", "", ACLMessage.CANCEL, conversationID, replyWith);
+                if(cancelRequested < 1) {
+                    MessageTemplate t = MessageTemplate.MatchConversationId("INTERN");
+                    this.initMessage("ALMIRALL_SEEKER1", "ANALYTICS", contentMessage.toString(), ACLMessage.CANCEL, "INTERN", "");
+                    in = this.blockingReceive(t);
+                    if (in != null && in.getPerformative() == ACLMessage.CANCEL) {
+                        this.initMessage(worldManager, "ANALYTICS", "", ACLMessage.CANCEL, conversationID, replyWith);
+                        status = Status.CHECKOUT_LARVA;
+                    } else {
+                        Info("No se ha podido hacer el checkout de WM: " + in.toString());
+                    }
+                }else{
+                    this.initMessage("ALMIRALL_SEEKER1", "ANALYTICS", contentMessage.toString(), ACLMessage.CANCEL, "INTERN", "");
+                }
                 break;
             case CHECKOUT_LARVA:
+                Info("Mandamos mensaje de CHECKOUT LARVA a todos los DRONES");
+                this.initMessage("ALMIRALL_SEEKER1", "ANALYTICS", contentMessage.toString(), ACLMessage.CANCEL, "INTERN", "");
+                MessageTemplate ta = MessageTemplate.MatchReplyWith("INTERN");
+                in = this.blockingReceive(ta);
                 this.checkOut();
                 break;
             case EXIT:
@@ -107,6 +131,8 @@ public class Listener extends BasicDrone {
                 }else{
                     this.replyMessage("INFORM", ACLMessage.REJECT_PROPOSAL, "");
                 }
+            } else {
+                Info("Error en Listener, mensaje no contemplado: " + in.toString());
             }
         }
     }
@@ -129,17 +155,23 @@ public class Listener extends BasicDrone {
      */
     public ACLMessage checkIn(){
         System.out.println("Intenta hacer el checkin en Larva");
-        this.initMessage(_identitymanager, "ANALYTICS", "", ACLMessage.SUBSCRIBE);
-        
-        in = this.blockingReceive(10000);
-        System.out.println("RESPUESTA CHECKIN: "+in);
-        if(in.getPerformative() == ACLMessage.CONFIRM || in.getPerformative() == ACLMessage.INFORM){
-            Info("Checkin confirmed in the platform");
-            return this.getYellowPages(in);
-        }else{
-            System.out.println("No se ha podido ejecutar el login correctamente, saliendo de la ejecución.");
-            //this.abortSession();
-            status = Status.EXIT;
+        if (!checkedInLarva) {
+            this.initMessage(_identitymanager, "ANALYTICS", "", ACLMessage.SUBSCRIBE);
+
+            in = this.blockingReceive(10000);
+            System.out.println("RESPUESTA CHECKIN: "+in);
+            if(in.getPerformative() == ACLMessage.CONFIRM || in.getPerformative() == ACLMessage.INFORM){
+                Info("Checkin confirmed in the platform");
+                checkedInLarva = true;
+                return this.getYellowPages(in);
+            }else{
+                System.out.println("No se ha podido ejecutar el login correctamente, saliendo de la ejecución.");
+                //this.abortSession();
+                status = Status.EXIT;
+            }
+        } else {
+            Info("Está logueado en LARVA e intenta volver a loguearse: " + in.toString());
+            status = Status.CHECKOUT_LARVA;
         }
         return in;
     }
@@ -154,7 +186,7 @@ public class Listener extends BasicDrone {
         this.replyMessage("ANALYTICS", ACLMessage.QUERY_REF, "");
         
         in = this.blockingReceive(10000);
-        if(in.getPerformative() == ACLMessage.CONFIRM || in.getPerformative() == ACLMessage.INFORM){
+        if(in != null && (in.getPerformative() == ACLMessage.CONFIRM || in.getPerformative() == ACLMessage.INFORM)){
             yp = new YellowPages();
             yp.updateYellowPages(in);
             System.out.println("YellowPages: "+yp.prettyPrint());
@@ -168,7 +200,9 @@ public class Listener extends BasicDrone {
                 status = Status.SUBSCRIBE_WM;
             }
         }else{
-            System.out.println("No se ha podido obtener correctamente las YellowPages.");
+            String message = in != null ? in.toString() : " NULO ";
+            System.out.println("No se ha podido obtener correctamente las YellowPages. " + message);
+            //status = Status.LISTENNING;
             status = Status.CHECKOUT_LARVA;
         }
         return in;
@@ -179,7 +213,7 @@ public class Listener extends BasicDrone {
      * @author Marcos Castillo
      */
     public void checkOut(){
-        this.replyMessage("ANALYTICS", ACLMessage.CANCEL, "");
+        this.initMessage(_identitymanager, "ANALYTICS", "", ACLMessage.CANCEL, conversationID, replyWith);
         /*
         in = this.blockingReceive(10000);
         if(in.getPerformative() == ACLMessage.INFORM){
@@ -195,38 +229,46 @@ public class Listener extends BasicDrone {
      * @return ACLMessage respuesta
      */
     public ACLMessage subscribeToWorldManager() {
-        String subscribe_world = "{\"problem\":\""+id_problema+"\"}";
-        this.initMessage(worldManager, "ANALYTICS", subscribe_world, ACLMessage.SUBSCRIBE);
-        
-        in = this.blockingReceive(10000);
-        System.out.println("RESPUESTA SUSCRIPCION WorldManager: "+in);
-        if(in != null){
-            if(in.getPerformative() == ACLMessage.CONFIRM || in.getPerformative() == ACLMessage.INFORM){
-                conversationID = in.getConversationId();
-                replyWith = in.getReplyWith();
-                
-                //Obtener el mapa en el mensaje y asignarlo al DBAMap de la clase
-                JsonObject replyObj = new JsonObject(Json.parse(in.getContent()).asObject());
-                if(replyObj.names().contains("map")){
-                    JsonObject jsonMapFile = replyObj.get("map").asObject();
-                    contentMessage.add("map", jsonMapFile);
-                    map.loadMap(jsonMapFile);
-                    this.refreshYellowPages();
-                    
-                    shops = yp.queryProvidersofService("shop@"+conversationID);
-                    if (!shops.isEmpty()) {
-                        System.out.println("TIENDAS: " + shops);
+        if(!loggedInWorld){
+            String subscribe_world = "{\"problem\":\""+id_problema+"\"}";
+            this.initMessage(worldManager, "ANALYTICS", subscribe_world, ACLMessage.SUBSCRIBE);
+
+            in = this.blockingReceive(10000);
+            System.out.println("RESPUESTA SUSCRIPCION WorldManager: "+in);
+            if(in != null){
+                if(in.getPerformative() == ACLMessage.CONFIRM || in.getPerformative() == ACLMessage.INFORM){
+                    conversationID = in.getConversationId();
+                    replyWith = in.getReplyWith();
+
+                    //Obtener el mapa en el mensaje y asignarlo al DBAMap de la clase
+                    JsonObject replyObj = new JsonObject(Json.parse(in.getContent()).asObject());
+                    if(replyObj.names().contains("map")){
+                        JsonObject jsonMapFile = replyObj.get("map").asObject();
+                        contentMessage.add("map", jsonMapFile);
+                        map.loadMap(jsonMapFile);
+                        this.refreshYellowPages();
+
+                        shops = yp.queryProvidersofService("shop@"+conversationID);
+                        if (!shops.isEmpty()) {
+                            System.out.println("TIENDAS: " + shops);
+                        }
+
+                        status = Status.SUBSCRIBE_TYPE;
+                    }else{
+                        System.out.println("Error 2 no se ha obtenido el mapa en la subscripción: " + replyObj.toString());
+                        status = Status.CHECKOUT_LARVA;
                     }
-                    
-                    status = Status.SUBSCRIBE_TYPE;
                 }else{
-                    System.out.println("Error 2 no se ha obtenido el mapa en la subscripción: " + replyObj.toString());
+                    System.out.println("Error en la suscripción al agente: " +in.toString());
+                    status = Status.CHECKOUT_LARVA;
                 }
             }else{
-                System.out.println("Error en la suscripción al agente");
+                System.out.println("El agente no ha contestado la petición: " + in.toString());
+                status = Status.CHECKOUT_LARVA;
             }
         }else{
-            System.out.println("El agente no ha contestado la petición");
+            Info("Intenta volver a loguearse en el WM :" + in.toString());
+            status = Status.CANCEL_WM;
         }
         return in;
     }
@@ -239,25 +281,32 @@ public class Listener extends BasicDrone {
      */
     public ACLMessage subscribeByType(String type){
         String subscribe_type = "{\"type\":\""+type+"\"}";
-        this.replyMessage("REGULAR", ACLMessage.SUBSCRIBE, subscribe_type);
-        
-        ACLMessage reply = this.blockingReceive();
-        System.out.println("RESPUESTA SUSCRIPCION AGENTE: "+reply);
-        if(reply != null){
-            in = reply;
-            if(in.getPerformative() == ACLMessage.INFORM){
-                conversationID = in.getConversationId();
-                replyWith = in.getReplyWith();
-                this.sendInitMessage();
-                status = Status.LISTENNING;
-            }else{
-                System.out.println("No se ha podido empezar partida, se deberá solicitar de nuevo");
+
+        if(!subscribed) {
+            this.replyMessage("REGULAR", ACLMessage.SUBSCRIBE, subscribe_type);
+
+            ACLMessage reply = this.blockingReceive();
+            System.out.println("RESPUESTA SUSCRIPCION AGENTE: "+reply);
+            if(reply != null){
+                in = reply;
+                if(in.getPerformative() == ACLMessage.INFORM){
+                    conversationID = in.getConversationId();
+                    replyWith = in.getReplyWith();
+                    subscribed = true;
+                    this.sendInitMessage();
+                    status = Status.LISTENNING;
+                }else{
+                    System.out.println("No se ha podido empezar partida, se deberá solicitar de nuevo");
+                    status = Status.CHECKOUT_LARVA;
+                }
+            }else if(tries == 3){
                 status = Status.CHECKOUT_LARVA;
+            }else{
+                tries++;
             }
-        }else if(tries == 3){
-            status = Status.CHECKOUT_LARVA;
         }else{
-            tries++;
+            Info("Suscrito por tipo y vuelve a intentarlo: " + in.toString());
+            status = Status.CANCEL_WM;
         }
         return in;
     }

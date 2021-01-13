@@ -18,21 +18,30 @@ public class Rescuer extends MoveDrone {
         switch(status) {
             case LISTENNING:
                 Info("Esperando esperando mensaje del Listener");
-                if(this.listenInit()) {
+                keepAliveSession = this.listenForMessages();
+                if(keepAliveSession) {
                     status = Status.SUBSCRIBE_WM;
                 }
                 else {
+                    _exitRequested = true;
                     status = Status.EXIT;
                 }
                 break;
                 
             case SUBSCRIBE_WM:
-                this.checkIn();
-                this.subscribeByType("RESCUER");
-                status = Status.PLANNING;
+                keepAliveSession = this.checkIn();
+                keepAliveSession &= this.subscribeByType("RESCUER");
+                if(keepAliveSession){
+                    status = Status.PLANNING;
+                }else{
+                    _exitRequested = true;
+                    status = Status.EXIT;
+                }
+
                 break;
             
             case PLANNING:
+                keepAliveSession = this.listenForMessages();
                 /*in = this.blockingReceive();
                 if (in.getContent().contains("COIN")) {
                     System.out.println("Mensaje recibido");
@@ -40,8 +49,13 @@ public class Rescuer extends MoveDrone {
                     this.wallet.add(in.getContent());
                 }
                 */
-                if(!shops.isEmpty()) {
-                    getProducts();
+                if(keepAliveSession) {
+                    if (!shops.isEmpty()) {
+                        getProducts();
+                    }
+                }else{
+                    _exitRequested = true;
+                    status = Status.EXIT;
                 }
                 status = Status.EXIT;
                 break;

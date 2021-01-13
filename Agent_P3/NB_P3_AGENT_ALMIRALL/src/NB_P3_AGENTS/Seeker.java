@@ -17,25 +17,34 @@ public class Seeker extends MoveDrone {
     public void plainExecute() {
         switch(status) {
             case LISTENNING:
+
                 Info("Esperando mensaje inicial del Listener");
-                if(this.listenInit()) {
+                keepAliveSession = this.listenForMessages();
+                if(keepAliveSession) {
                     status = Status.SUBSCRIBE_WM;
-                }
-                else {
+                } else {
+                    _exitRequested = true;
                     status = Status.EXIT;
                 }
                 break;
                 
             case SUBSCRIBE_WM:
-                this.checkIn();
-                this.subscribeByType("SEEKER");
-                if(this.loginWorld()){
+                keepAliveSession = this.checkIn();
+                keepAliveSession &= this.subscribeByType("SEEKER");
+                //this.requestAction("Found");
+                keepAliveSession &= this.loginWorld();
+                if(keepAliveSession){
                     this.setupCurrentState();
+                    status = Status.PLANNING;
+                }else{
+                    _exitRequested = true;
+                    status = Status.EXIT;
                 }
-                status = Status.PLANNING;
+
                 break;
                 
             case PLANNING:
+                keepAliveSession = this.listenForMessages();
                 /* Enviar moneda
                 this.sendCoin("ALMIRALL_RESCUER");
                 */
@@ -47,11 +56,15 @@ public class Seeker extends MoveDrone {
                     this.wallet.add(in.getContent());
                 }
                 */
-                
+                if(keepAliveSession){
+                    //TODO
+                }else{
+                    _exitRequested = true;
+                    status = Status.EXIT;
+                }
                 status = Status.EXIT;
                 break;
 
-                
             case EXIT:
                 Info("Se cierra el agente");
                 this.exitRequestedToListener();
