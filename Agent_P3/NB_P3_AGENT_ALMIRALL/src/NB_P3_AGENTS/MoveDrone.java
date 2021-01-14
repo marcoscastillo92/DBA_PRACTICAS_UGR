@@ -374,7 +374,7 @@ public abstract class MoveDrone extends BasicDrone {
         return droneHeight;
     }
     
-    public ArrayList<String> land(){
+    public void land(){
         int altura = this.getDroneHeight();
         
         ArrayList<String> landActions = new ArrayList<>();
@@ -388,7 +388,7 @@ public abstract class MoveDrone extends BasicDrone {
                 this.updateActualInfo("moveD");
             }
         }
-        return landActions;
+        this.actions = landActions;
     }
 
     public int getEnergy() {
