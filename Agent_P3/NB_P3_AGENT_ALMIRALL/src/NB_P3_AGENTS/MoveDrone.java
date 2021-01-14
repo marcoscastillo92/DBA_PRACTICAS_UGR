@@ -38,6 +38,7 @@ public abstract class MoveDrone extends BasicDrone {
     PriorityQueue<Node> ludwigs;
     PriorityQueue<Sensor> products;
     ArrayList<String> tiendas;
+    ArrayList<Sensor> sensors;
     
     @Override
     public void setup(){
@@ -51,6 +52,7 @@ public abstract class MoveDrone extends BasicDrone {
         keepAliveSession = true;
         objectiveFounded = new Node("11-1", 1, 11, 239); //PARA MOCKUP se ha de hacer bien cuando se encuentre un Ludwig
         tiendas = new ArrayList<>();
+        sensors = new ArrayList<Sensor>();
     }
     
     /**
@@ -314,11 +316,13 @@ public abstract class MoveDrone extends BasicDrone {
     
     public void getSensors(){
         boolean thermalbought = false;
+        boolean bought;
         
         for (String sensor:tiendas){
             for (Sensor s:products){
                 if((s.getName().contains("THERMAL") && !thermalbought) || !s.getName().contains("THERMAL")){
-                    if(s.getName().contains(sensor) && s.getName().contains("THERMAL") && this.buy(s.getShop(), s.getName(), s.getPrice())){
+                    bought = this.buy(s.getShop(), s.getName(), s.getPrice());
+                    if(s.getName().contains(sensor) && s.getName().contains("THERMAL") && bought){
                         thermalbought = true;
                     }
                 }
