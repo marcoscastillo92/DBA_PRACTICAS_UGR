@@ -4,6 +4,7 @@ import YellowPages.YellowPages;
 import com.eclipsesource.json.*;
 import jade.core.AID;
 import jade.lang.acl.ACLMessage;
+import java.util.PriorityQueue;
 
 import java.util.PriorityQueue;
 
