@@ -87,4 +87,46 @@ public class Rescuer extends MoveDrone {
                 
         }
     }
+
+    /**
+     * Método para actualizar la cola con prioridad en base a la nueva distancia al rescuer
+     * y recalcular ruta si hay alguno más cercano
+     * @author Marcos Castillo
+     */
+    public void updateDistanceToLudwigsInQueue(){
+        if(!ludwigs.isEmpty()){
+            int[] positionRescuer = getActualPosition();
+            Node oldObjective = ludwigs.peek();
+            for(Node ludwig : ludwigs){
+                int dX = ludwig.getX() - positionRescuer[0];
+                int dY = ludwig.getY() - positionRescuer[1];
+                int dH = ludwig.getHeight() - getDroneHeight();
+                ludwig.setDistanceToRescuer(Math.sqrt(Math.pow(dX, 2)+Math.pow(dY, 2)) + dH);
+            }
+            Node newObjective = ludwigs.peek();
+            if(newObjective != oldObjective){
+                this.findRoute(positionRescuer[0], positionRescuer[1], newObjective.getX(), newObjective.getY());
+            }
+        }
+    }
+
+    @Override
+    public boolean listenForMessages(){
+        ACLMessage aux = this.blockingReceive();
+        if(name.equals(droneNames.get("rescuer")) && aux.getPerformative() == ACLMessage.INFORM_REF){
+            JsonObject response = new JsonObject(Json.parse(in.getContent()).asObject());
+            //Ludwig founded
+            int xPositionLudwig = response.get("xPositionLudwig").asInt();
+            int yPositionLudwig = response.get("yPositionLudwig").asInt();
+            int ludwigHeight = response.get("ludwigHeight").asInt();
+            double distanceToRescuer = calculateDistance(xPositionLudwig, yPositionLudwig, ludwigHeight);
+
+            Node node = new Node(yPositionLudwig+"-"+xPositionLudwig, xPositionLudwig, yPositionLudwig, ludwigHeight, distanceToRescuer);
+            ludwigs.add(node);
+
+            updateDistanceToLudwigsInQueue();
+            return true;
+        }
+        return false;
+    }
 }

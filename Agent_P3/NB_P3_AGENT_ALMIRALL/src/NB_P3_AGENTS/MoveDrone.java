@@ -330,20 +330,20 @@ public abstract class MoveDrone extends BasicDrone {
         System.out.println("RUTA: \n"+route.stream().map(Node::getId).collect(Collectors.toList()));
     }
 
-    private int[] getActualPosition() {
+    public int[] getActualPosition() {
         return new int[]{xPosition, yPosition};
     }
 
-    private int[] getNextPosition() {
+    public int[] getNextPosition() {
         Node nextNode = route.get(0);
         return new int[]{(int)nextNode.getX(), (int)nextNode.getY()};
     }
 
-    private int getDroneHeight() {
+    public int getDroneHeight() {
         return droneHeight;
     }
 
-    private int getEnergy() {
+    public int getEnergy() {
         return energy;
     }
 
@@ -411,25 +411,14 @@ public abstract class MoveDrone extends BasicDrone {
             if(aux.getPerformative() == ACLMessage.CANCEL && aux.getConversationId().equals("INTERN")){
                 //this.initMessage(droneNames.get("listener"), "ANALYTICS", "", ACLMessage.CONFIRM, "INTERN", "INTERN");
                 return false;
-            }else if(name.equals(droneNames.get("rescuer")) && aux.getPerformative() == ACLMessage.INFORM_REF){
-                JsonObject response = new JsonObject(Json.parse(in.getContent()).asObject());
-                //Ludwig founded
-                int xPositionLudwig = response.get("xPositionLudwig").asInt();
-                int yPositionLudwig = response.get("yPositionLudwig").asInt();
-                int ludwigHeight = response.get("ludwigHeight").asInt();
-                double distanceToRescuer = calculateDistance(xPositionLudwig, yPositionLudwig, ludwigHeight);
-
-                Node node = new Node(yPositionLudwig+"-"+xPositionLudwig, xPositionLudwig, yPositionLudwig, ludwigHeight, distanceToRescuer);
-                ludwigs.add(node);
-
-                this.replyMessage("INFORM", ACLMessage.CONFIRM, "");
+            } else {
                 return this.listenInit(aux);
             }
         }
         return true;
     }
 
-    private double calculateDistance(int xPositionLudwig, int yPositionLudwig, int ludwigHeight) {
+    public double calculateDistance(int xPositionLudwig, int yPositionLudwig, int ludwigHeight) {
         int[] positionRescuer = getActualPosition();
         int dX = xPositionLudwig - positionRescuer[0];
         int dY = yPositionLudwig - positionRescuer[1];
