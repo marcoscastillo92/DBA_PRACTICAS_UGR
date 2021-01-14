@@ -124,7 +124,6 @@ public class Rescuer extends MoveDrone {
         return false;
     }
     
-
     /**
      * Método para actualizar la cola con prioridad en base a la nueva distancia al rescuer
      * y recalcular ruta si hay alguno más cercano
