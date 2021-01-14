@@ -5,6 +5,8 @@ import com.eclipsesource.json.*;
 import jade.core.AID;
 import jade.lang.acl.ACLMessage;
 
+import java.util.PriorityQueue;
+
 public class Rescuer extends MoveDrone {
 
     @Override

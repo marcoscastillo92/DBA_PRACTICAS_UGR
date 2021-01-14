@@ -13,14 +13,14 @@ import java.util.StringJoiner;
  */
 public class Node {
     private final String id;
-    private final double x;
-    private final double y;
+    private final int x;
+    private final int y;
     private final int height;
     private boolean visited;
     private double distanceToRescuer;
     int MAX_HEIGHT = 256;
 
-    public Node(String id, double x, double y, int height) {
+    public Node(String id, int x, int y, int height) {
         this.id = id;
         this.x = x;
         this.y = y;
@@ -28,7 +28,7 @@ public class Node {
         this.visited = false;
     }
 
-    public Node(String id, double x, double y, int height, double distanceToRescuer) {
+    public Node(String id, int x, int y, int height, double distanceToRescuer) {
         this.id = id;
         this.x = x;
         this.y = y;
@@ -41,11 +41,11 @@ public class Node {
         return id;
     }
 
-    public double getX() {
+    public int getX() {
         return x;
     }
 
-    public double getY() {
+    public int getY() {
         return y;
     }
     
@@ -54,6 +54,8 @@ public class Node {
     }
 
     public double getDistanceToRescuer() { return distanceToRescuer; }
+
+    public void setDistanceToRescuer(double v) { distanceToRescuer = v; }
     
     public boolean isVisited() {
         return this.visited;
