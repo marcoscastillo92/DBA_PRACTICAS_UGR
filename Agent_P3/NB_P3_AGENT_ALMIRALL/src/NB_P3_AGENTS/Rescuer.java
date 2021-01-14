@@ -87,7 +87,43 @@ public class Rescuer extends MoveDrone {
                 
         }
     }
-
+    
+    // Se ejecuta solo si esta encima de el
+    public boolean takeLudwig(int targetHeight){
+        int height = this.getDroneHeight();
+        JsonObject rescate = new JsonObject();
+        
+        if(height == targetHeight){
+            rescate.add("operation", "rescue");
+            
+            this.replyMessage("REGULAR", ACLMessage.REQUEST, rescate.toString());
+            
+            
+        }
+        else{
+            Info("Se baja a por el Ludwig");
+            
+            this.land();
+            this.replyMessage("REGULAR", ACLMessage.REQUEST, rescate.toString());
+        }
+        
+        in = this.blockingReceive();
+        
+        if(in.getPerformative() == ACLMessage.CONFIRM){
+            Info("Se ha recogido el Ludwig");
+            return true;
+        }
+        else{
+            Info("No se ha podido recoger al Ludwig");
+            return false;
+        }
+    }
+    
+    //Llevar a casa
+    public boolean rescueLudwig(){
+        return false;
+    }
+    
     /**
      * Método para actualizar la cola con prioridad en base a la nueva distancia al rescuer
      * y recalcular ruta si hay alguno más cercano

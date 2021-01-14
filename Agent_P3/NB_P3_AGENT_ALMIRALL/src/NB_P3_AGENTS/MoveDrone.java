@@ -305,6 +305,15 @@ public abstract class MoveDrone extends BasicDrone {
         }
     }
     
+    public void getSensor(PriorityQueue<Sensor> products, String sensor){
+        
+        for (Sensor s:products){
+            if (s.getName() == sensor){
+                this.buy(s.getShop(), s.getName(), s.getPrice());
+            }
+        }
+    }
+    
     /**
      * Método para inicializar los datos del algoritmo A*
      * @author Marcos Castillo
@@ -341,6 +350,23 @@ public abstract class MoveDrone extends BasicDrone {
 
     public int getDroneHeight() {
         return droneHeight;
+    }
+    
+    public void land(){
+        int altura = this.getDroneHeight();
+        /*
+        ArrayList<String> landActions = new ArrayList<>();
+        while (!this.isLanded()) {
+            if (this.canExecuteNextAction("touchD")) {
+                landActions.add("touchD");
+                this.updateActualInfo("touchD");
+                break;
+            }else{
+                landActions.add("moveD");
+                this.updateActualInfo("moveD");
+            }
+        }
+        return landActions;*/
     }
 
     public int getEnergy() {
