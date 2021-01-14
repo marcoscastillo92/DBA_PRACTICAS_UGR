@@ -35,6 +35,7 @@ public abstract class MoveDrone extends BasicDrone {
     List<Node> route;
     JsonObject currentState;
     Node objectiveFounded;
+    PriorityQueue<Node> ludwigs;
     
     @Override
     public void setup(){
@@ -382,21 +383,8 @@ public abstract class MoveDrone extends BasicDrone {
     public void requestAction(String actionToPerform){
         JsonObject action = new JsonObject();
         action.add("action", actionToPerform);
-        String protocol;
-        int performative;
 
-        if ("Found".equals(actionToPerform)) {
-            protocol = "INFORM";
-            performative = ACLMessage.INFORM;
-            action.add("xPositionLudwig", objectiveFounded.getX());
-            action.add("yPositionLudwig", objectiveFounded.getY());
-            action.add("ludwigHeight", objectiveFounded.getHeight());
-        } else {
-            protocol = "REGULAR";
-            performative = ACLMessage.PROPOSE;
-        }
-
-        this.initMessage(droneNames.get("listener"), protocol, action.toString(), performative, "INTERN", name);
+        this.initMessage(droneNames.get("listener"), "REGULAR", action.toString(), ACLMessage.PROPOSE, "INTERN", name);
 
         MessageTemplate t = MessageTemplate.MatchInReplyTo(name);
         in = this.blockingReceive(t);
@@ -407,6 +395,15 @@ public abstract class MoveDrone extends BasicDrone {
         // TODO If it's executable action and is not "recharge" wait else send coins to ...
     }
 
+    public void informLudwigPositionToRescuer(Node node){
+        JsonObject position = new JsonObject();
+        position.add("xPositionLudwig", objectiveFounded.getX());
+        position.add("yPositionLudwig", objectiveFounded.getY());
+        position.add("ludwigHeight", objectiveFounded.getHeight());
+
+        this.initMessage(droneNames.get("rescuer"), "INFORM", position.toString(), ACLMessage.INFORM, "INTERN", name);
+    }
+
     public boolean listenForMessages(){
         ACLMessage aux = this.blockingReceive();
         if(aux != null){
@@ -414,10 +411,30 @@ public abstract class MoveDrone extends BasicDrone {
             if(aux.getPerformative() == ACLMessage.CANCEL && aux.getConversationId().equals("INTERN")){
                 //this.initMessage(droneNames.get("listener"), "ANALYTICS", "", ACLMessage.CONFIRM, "INTERN", "INTERN");
                 return false;
-            }else{
+            }else if(name.equals(droneNames.get("rescuer")) && aux.getPerformative() == ACLMessage.INFORM_REF){
+                JsonObject response = new JsonObject(Json.parse(in.getContent()).asObject());
+                //Ludwig founded
+                int xPositionLudwig = response.get("xPositionLudwig").asInt();
+                int yPositionLudwig = response.get("yPositionLudwig").asInt();
+                int ludwigHeight = response.get("ludwigHeight").asInt();
+                double distanceToRescuer = calculateDistance(xPositionLudwig, yPositionLudwig, ludwigHeight);
+
+                Node node = new Node(yPositionLudwig+"-"+xPositionLudwig, xPositionLudwig, yPositionLudwig, ludwigHeight, distanceToRescuer);
+                ludwigs.add(node);
+
+                this.replyMessage("INFORM", ACLMessage.CONFIRM, "");
                 return this.listenInit(aux);
             }
         }
         return true;
+    }
+
+    private double calculateDistance(int xPositionLudwig, int yPositionLudwig, int ludwigHeight) {
+        int[] positionRescuer = getActualPosition();
+        int dX = xPositionLudwig - positionRescuer[0];
+        int dY = yPositionLudwig - positionRescuer[1];
+        int dH = ludwigHeight - getDroneHeight();
+
+        return (Math.sqrt(Math.pow(dX, 2)+Math.pow(dY, 2)) + dH);
     }
 }
