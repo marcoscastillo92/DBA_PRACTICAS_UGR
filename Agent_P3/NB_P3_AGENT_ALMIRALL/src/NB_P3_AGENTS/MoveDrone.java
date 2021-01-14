@@ -35,6 +35,7 @@ public abstract class MoveDrone extends BasicDrone {
     List<Node> route;
     JsonObject currentState;
     Node objectiveFounded;
+    Node nextNode;
     PriorityQueue<Node> ludwigs;
     ArrayList<String> actions;
     PriorityQueue<Sensor> products;
@@ -438,6 +439,17 @@ public abstract class MoveDrone extends BasicDrone {
 
         if(in.getPerformative() == ACLMessage.CONFIRM){
             //TODO Send action to WorldManager if it's executable action
+            this.initMessage(worldManager, "REGULAR", action.toString(), ACLMessage.REQUEST, conversationID, "");
+            MessageTemplate template = MessageTemplate.MatchSender(new AID(worldManager));
+            in = this.blockingReceive(template);
+            if( in.getPerformative() == ACLMessage.CONFIRM){
+                Info("Va a ejecutar acción: " + actionToPerform);
+                replyWith = in.getReplyWith();
+                conversationID = in.getConversationId();
+            }else{
+                Info("World manager no permite realizar esta acción: " +actionToPerform);
+                // TODO: ¿QUÉ HACER? EXIT o INFORMAR A LISTENER Y DESPUES DE "X" VECES EXIT
+            }
         } else {
             //Si es acción ejecutable que no sea recargar sleep y devolvemos falso para volver a intentarlo más tarde
           if(!actionToPerform.equals("recharge")){
@@ -448,7 +460,8 @@ public abstract class MoveDrone extends BasicDrone {
               }
 
           }else{
-              //TODO send coins to Rescuer
+              //Mandamos coins al rescuer
+              sendCoin(droneNames.get("rescuer"));
               return true;
           }
         }
@@ -527,6 +540,7 @@ public abstract class MoveDrone extends BasicDrone {
     
     public void moveToNode(Node from, Node to, double compass) {
         // Cuanto se tiene que mover en el eje x y cuanto en el y
+        nextNode = to;
         int diffX = (int) (to.getX() - from.getX());
         int diffY = (int) (to.getY() - from.getY());
         int d = 0;
@@ -713,13 +727,7 @@ public abstract class MoveDrone extends BasicDrone {
     }
 
     public Node getNextNode(String action) {
-        int[] dronePosition = getActualPosition();
-        if(action.equals("moveF")){
-
-            return ;
-        }else{
-            return graphMap.getNode(dronePosition[1]+"-"+dronePosition[0]);
-        }
+        return nextNode;
     }
 
     public boolean isLookingOutOfFrontier() {
@@ -776,7 +784,8 @@ public abstract class MoveDrone extends BasicDrone {
         switch(action){
             case "moveF":
                 //Actualizar gpsActual
-                setActualPosition();
+                xPosition = nextNode.getX();
+                yPosition = nextNode.getY();
                 break;
             case "rotateL":
                 if(sensors.get("compass").getValue() <= -135){
@@ -805,10 +814,5 @@ public abstract class MoveDrone extends BasicDrone {
                 break;
         }
         //this.showTrackingInfo();
-    }
-
-    public void setActualPosition() {
-        xPosition = 0;
-        yPosition = 0;
     }
 }
