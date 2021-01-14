@@ -22,6 +22,8 @@ public class Rescuer extends MoveDrone {
         status = Status.LISTENNING;
         keepAliveSession = true;
         ludwigs = new PriorityQueue<Node>(new LudwigComparator());
+        tiendas.add("COMPASS");
+        tiendas.add("ANGULAR");
     }
     
     @Override
@@ -88,23 +90,36 @@ public class Rescuer extends MoveDrone {
         }
     }
     
+    public boolean onTarget(){
+        boolean on = false;
+        int x = getActualPosition()[0];
+        int y = getActualPosition()[1];
+        
+        for(Node ludwig : ludwigs){
+            if(ludwig.getX()==x && ludwig.getY()==y){
+                on = true;
+            }
+        }
+        return on;
+    }
+    
     // Se ejecuta solo si esta encima de el
     public boolean takeLudwig(int targetHeight){
-        int height = this.getDroneHeight();
         JsonObject rescate = new JsonObject();
         
-        if(height == targetHeight){
+        if(this.isLanded()){
             rescate.add("operation", "rescue");
             
-            this.replyMessage("REGULAR", ACLMessage.REQUEST, rescate.toString());
-            
-            
+            this.initMessage(worldManager, "REGULAR", rescate.toString(), ACLMessage.REQUEST, conversationID, "");
         }
         else{
             Info("Se baja a por el Ludwig");
             
             this.land();
-            this.replyMessage("REGULAR", ACLMessage.REQUEST, rescate.toString());
+            
+            if(this.isLanded()==true){
+                this.initMessage(worldManager, "REGULAR", rescate.toString(), ACLMessage.REQUEST, conversationID, "");
+            }
         }
         
         in = this.blockingReceive();
@@ -117,11 +132,6 @@ public class Rescuer extends MoveDrone {
             Info("No se ha podido recoger al Ludwig");
             return false;
         }
-    }
-    
-    //Llevar a casa
-    public boolean rescueLudwig(){
-        return false;
     }
     
     /**

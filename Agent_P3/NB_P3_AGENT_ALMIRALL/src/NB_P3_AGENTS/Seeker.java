@@ -11,6 +11,10 @@ public class Seeker extends MoveDrone {
     public void setup(){
         super.setup();
         status = Status.LISTENNING;
+        tiendas.add("THERMALDLX");
+        tiendas.add("THEMALHQ");
+        tiendas.add("THERMAL");
+        tiendas.add("COMPASS");
     }
     
     @Override

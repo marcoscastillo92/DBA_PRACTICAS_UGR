@@ -36,6 +36,8 @@ public abstract class MoveDrone extends BasicDrone {
     JsonObject currentState;
     Node objectiveFounded;
     PriorityQueue<Node> ludwigs;
+    PriorityQueue<Sensor> products;
+    ArrayList<String> tiendas;
     
     @Override
     public void setup(){
@@ -48,6 +50,7 @@ public abstract class MoveDrone extends BasicDrone {
         checkedInLarva = false;
         keepAliveSession = true;
         objectiveFounded = new Node("11-1", 1, 11, 239); //PARA MOCKUP se ha de hacer bien cuando se encuentre un Ludwig
+        tiendas = new ArrayList<>();
     }
     
     /**
@@ -185,7 +188,7 @@ public abstract class MoveDrone extends BasicDrone {
     public JsonObject getProducts(){
         JsonObject shopValues = new JsonObject();
 
-        PriorityQueue<Sensor> products = new PriorityQueue<>(new sensorComparator());
+        products = new PriorityQueue<>(new sensorComparator());
         if(!shops.isEmpty()) {
             for (String shop : shops) {
                 this.initMessage(shop, "REGULAR", "{}", ACLMessage.QUERY_REF, conversationID, "RESCUER_BUY");
@@ -265,7 +268,7 @@ public abstract class MoveDrone extends BasicDrone {
         }
     }
     
-    public void buy(String shop, String service, int cost) {
+    public boolean buy(String shop, String service, int cost) {
         JsonObject compra = new JsonObject();
         JsonArray payment = new JsonArray();
         
@@ -298,18 +301,27 @@ public abstract class MoveDrone extends BasicDrone {
             for (int i = 0; i < payment.size(); i++) {
                 this.wallet.add(payment.get(i).asString());
             }
+            
+            return false;
         }
         else {
             // En otro caso, se habra realizado la compra correctamente
             System.out.println("Compra realizada");
+            
+            return true;
         }
     }
     
-    public void getSensor(PriorityQueue<Sensor> products, String sensor){
+    public void getSensors(){
+        boolean thermalbought = false;
         
-        for (Sensor s:products){
-            if (s.getName() == sensor){
-                this.buy(s.getShop(), s.getName(), s.getPrice());
+        for (String sensor:tiendas){
+            for (Sensor s:products){
+                if((s.getName().contains("THERMAL") && !thermalbought) || !s.getName().contains("THERMAL")){
+                    if(s.getName().contains(sensor) && s.getName().contains("THERMAL") && this.buy(s.getShop(), s.getName(), s.getPrice())){
+                        thermalbought = true;
+                    }
+                }
             }
         }
     }
@@ -352,9 +364,9 @@ public abstract class MoveDrone extends BasicDrone {
         return droneHeight;
     }
     
-    public void land(){
+    public ArrayList<String> land(){
         int altura = this.getDroneHeight();
-        /*
+        
         ArrayList<String> landActions = new ArrayList<>();
         while (!this.isLanded()) {
             if (this.canExecuteNextAction("touchD")) {
@@ -366,7 +378,7 @@ public abstract class MoveDrone extends BasicDrone {
                 this.updateActualInfo("moveD");
             }
         }
-        return landActions;*/
+        return landActions;
     }
 
     public int getEnergy() {
@@ -502,5 +514,18 @@ public abstract class MoveDrone extends BasicDrone {
 
     public boolean hasEnoughtEnergy(){
         return energy < 1000/2.5;
+    }
+    
+    public boolean isLanded(){
+        boolean is = false;
+        int[] position = getActualPosition();
+        int h = getDroneHeight();
+        int g = graphMap.getNode(position[1]+"-"+position[0]).getHeight();
+        
+        if(h==g){
+            is = true;
+        }
+            
+        return is;
     }
 }
