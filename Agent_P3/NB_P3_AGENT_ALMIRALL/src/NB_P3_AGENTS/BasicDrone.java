@@ -7,7 +7,7 @@ import jade.lang.acl.ACLMessage;
 import java.util.*;
 
 enum Status {
-    CHECKIN_LARVA, SUBSCRIBE_WM, SUBSCRIBE_TYPE, LISTENNING, PLANNING, CANCEL_WM, CHECKOUT_LARVA, EXIT
+    CHECKIN_LARVA, SUBSCRIBE_WM, SUBSCRIBE_TYPE, LISTENNING, PLANNING, ACTING, CANCEL_WM, CHECKOUT_LARVA, EXIT
 }
 
 public abstract class BasicDrone extends IntegratedAgent {
