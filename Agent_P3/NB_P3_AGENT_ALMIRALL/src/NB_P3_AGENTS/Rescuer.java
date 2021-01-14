@@ -5,15 +5,6 @@ import com.eclipsesource.json.*;
 import jade.core.AID;
 import jade.lang.acl.ACLMessage;
 
-import java.util.Comparator;
-import java.util.PriorityQueue;
-
-class LudwigComparator implements Comparator<Node> {
-    public int compare(Node n1, Node n2) {
-        return (int)n1.getDistanceToRescuer() - (int)n2.getDistanceToRescuer();
-    }
-}
-
 public class Rescuer extends MoveDrone {
 
     @Override

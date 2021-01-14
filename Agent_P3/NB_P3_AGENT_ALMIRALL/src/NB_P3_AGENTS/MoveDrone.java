@@ -36,6 +36,7 @@ public abstract class MoveDrone extends BasicDrone {
     JsonObject currentState;
     Node objectiveFounded;
     PriorityQueue<Node> ludwigs;
+    ArrayList<String> actions;
     PriorityQueue<Sensor> products;
     ArrayList<String> tiendas;
     HashMap<String, Sensor> sensors;
@@ -522,6 +523,138 @@ public abstract class MoveDrone extends BasicDrone {
 
     public boolean hasEnoughtEnergy(){
         return energy < 1000/2.5;
+    }
+    
+    public void moveToNode(Node from, Node to, double compass) {
+        // Cuanto se tiene que mover en el eje x y cuanto en el y
+        int diffX = (int) (to.getX() - from.getX());
+        int diffY = (int) (to.getY() - from.getY());
+        int d = 0;
+        double aux;
+        
+        int diffHeight = (to.getHeight()+1) - this.droneHeight;
+        
+        while (diffHeight > 0) {
+            actions.add("moveUP");
+            diffHeight =- 5;
+        }
+        
+        // Borra los decimales que pueda tener compass
+        if (compass % 45 != 0) {
+            aux = compass / 45;
+            aux = Math.round(aux);
+            compass = aux * 45;
+        }
+        
+        // Si tiene que moverse arriba a la derecha
+        if (diffX == 1 && diffY == -1) {
+            while (compass != 45) {
+            compass += 45.0;
+            d++;
+
+                if (compass > 180) { 
+                    compass = -135;
+                }
+            }
+        }
+        // Si tiene que moverse arriba
+        else if (diffX == 0 && diffY == -1) {
+            while (compass != 0) {
+            compass += 45.0;
+            d++;
+
+                if (compass > 180) { 
+                    compass = -135;
+                }
+            }
+        }
+        // Si tiene que moverse arriba a la izquierda
+        else if (diffX == -1 && diffY == -1) {
+            while (compass != -45) {
+            compass += 45.0;
+            d++;
+
+                if (compass > 180) { 
+                    compass = -135;
+                }
+            }
+        }
+        // Si tiene que moverse a la derecha
+        else if (diffX == 1 && diffY == 0) {
+            while (compass != 90) {
+            compass += 45.0;
+            d++;
+
+                if (compass > 180) { 
+                    compass = -135;
+                }
+            }
+        }
+        // Si tiene que moverse a la izquierda
+        else if (diffX == -1 && diffY == 0) {
+            while (compass != -90) {
+            compass += 45.0;
+            d++;
+
+                if (compass > 180) { 
+                    compass = -135;
+                }
+            }
+        }
+        // Si tiene que moverse abajo a la derecha
+        else if (diffX == 1 && diffY == 1) {
+            while (compass != 135) {
+            compass += 45.0;
+            d++;
+
+                if (compass > 180) { 
+                    compass = -135;
+                }
+            }
+        }
+        // Si tiene que moverse abajo
+        else if (diffX == 0 && diffY == 1) {
+            while (compass != 180) {
+            compass += 45.0;
+            d++;
+
+                if (compass > 180) { 
+                    compass = -135;
+                }
+            }
+        }
+        // Si tiene que moverse abajo a la izquierda
+        else if (diffX == -1 && diffY == 1) {
+            while (compass != -135) {
+            compass += 45.0;
+            d++;
+
+                if (compass > 180) { 
+                    compass = -135;
+                }
+            }
+        }
+        
+        if (d <= 4) {
+            // El plan es girar a la derecha d veces
+            while (d != 0) {
+                actions.add("rotateR");
+                d--; 
+            }
+            
+            actions.add("moveF");
+        }
+        else {
+            // El plan es girar a la izquierda i veces
+            int i = 8 - d;
+
+            while (i != 0) {
+                actions.add("rotateL");
+                i--;
+            }
+            
+            actions.add("moveF");
+        }
     }
     
     public boolean isLanded(){
