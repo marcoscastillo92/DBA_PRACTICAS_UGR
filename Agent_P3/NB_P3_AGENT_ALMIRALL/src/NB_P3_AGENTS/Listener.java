@@ -101,6 +101,7 @@ public class Listener extends BasicDrone {
         in = this.blockingReceive(t);
 
         if(in != null){
+            JsonObject response = new JsonObject(Json.parse(in.getContent()).asObject());
             if(in.getPerformative() == ACLMessage.CANCEL){
                 this.replyMessage("ANALITYCS", ACLMessage.CONFIRM, "");
                 cancelRequested++;
@@ -108,7 +109,6 @@ public class Listener extends BasicDrone {
                     status = Status.CANCEL_WM;
                 }
             }else if(in.getPerformative() == ACLMessage.INFORM){
-                JsonObject response = new JsonObject(Json.parse(in.getContent()).asObject());
                 //Ludwig founded
                 // TODO save position of Ludwig and queue by priority
                 int xPositionLudwig = response.get("xPositionLudwig").asInt();
@@ -122,7 +122,7 @@ public class Listener extends BasicDrone {
                 this.replyMessage("INFORM", ACLMessage.CONFIRM, "");
 
             }else if(in.getPerformative() == ACLMessage.PROPOSE){
-                if(canExecuteMove("drone", in.getContent())) {
+                if(canExecuteMove("drone", response.get("operation").toString())) {
                     this.replyMessage("INFORM", ACLMessage.CONFIRM, "");
                     //Actualizar droneInfo
                 }else{

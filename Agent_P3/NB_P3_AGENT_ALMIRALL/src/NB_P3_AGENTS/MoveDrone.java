@@ -430,11 +430,11 @@ public abstract class MoveDrone extends BasicDrone {
 
     public boolean requestAction(String actionToPerform){
         JsonObject action = new JsonObject();
-        action.add("action", actionToPerform);
+        action.add("operation", actionToPerform);
 
         this.initMessage(droneNames.get("listener"), "REGULAR", action.toString(), ACLMessage.PROPOSE, "INTERN", name);
 
-        MessageTemplate t = MessageTemplate.MatchInReplyTo(name);
+        MessageTemplate t = MessageTemplate.MatchSender(new AID(droneNames.get("listener")));
         in = this.blockingReceive(t);
 
         if(in.getPerformative() == ACLMessage.CONFIRM){
@@ -814,5 +814,9 @@ public abstract class MoveDrone extends BasicDrone {
                 break;
         }
         //this.showTrackingInfo();
+    }
+
+    public void showTrackingInfo() {
+        //TODO
     }
 }
