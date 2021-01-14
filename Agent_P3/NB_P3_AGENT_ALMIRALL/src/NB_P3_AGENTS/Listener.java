@@ -7,12 +7,6 @@ import jade.lang.acl.MessageTemplate;
 
 import java.util.*;
 
-class LudwigComparator implements Comparator<Node> {
-    public int compare(Node n1, Node n2) {
-        return (int)n1.getDistanceToRescuer() - (int)n2.getDistanceToRescuer();
-    }
-}
-
 public class Listener extends BasicDrone {
     YellowPages yp;
     Status status;
@@ -20,7 +14,6 @@ public class Listener extends BasicDrone {
     JsonObject contentMessage;
     Set<String> shops;
     List<DroneInfo> drones;
-    PriorityQueue<Node> ludwigs;
     
     @Override
     public void setup(){
@@ -35,7 +28,6 @@ public class Listener extends BasicDrone {
         drones.add(new DroneInfo(droneNames.get("seeker2")));
         drones.add(new DroneInfo(droneNames.get("seeker3")));
         drones.add(new DroneInfo(droneNames.get("rescuer")));
-        ludwigs = new PriorityQueue<Node>(new LudwigComparator());
         subscribed = false;
         loggedInWorld = false;
         checkedInLarva = false;
@@ -47,17 +39,17 @@ public class Listener extends BasicDrone {
     public void plainExecute() {
         switch(status){
             case CHECKIN_LARVA:
-                keepAliveSession &= this.checkIn();
+                keepAliveSession = this.checkIn();
                 if(!keepAliveSession)
                     status = Status.EXIT;
                 break;
             case SUBSCRIBE_WM:
-                keepAliveSession &= this.subscribeToWorldManager();
+                keepAliveSession = this.subscribeToWorldManager();
                 if(!keepAliveSession)
                     status = Status.CHECKOUT_LARVA;
                 break;
             case SUBSCRIBE_TYPE:
-                keepAliveSession &= this.subscribeByType("LISTENER");
+                keepAliveSession = this.subscribeByType("LISTENER");
                 if(!keepAliveSession)
                     status = Status.CANCEL_WM;
                 break;
@@ -108,18 +100,7 @@ public class Listener extends BasicDrone {
                     status = Status.CANCEL_WM;
                 }
             }else if(in.getPerformative() == ACLMessage.INFORM){
-                JsonObject response = new JsonObject(Json.parse(in.getContent()).asObject());
-                //Ludwig founded
-                // TODO save position of Ludwig and queue by priority
-                int xPositionLudwig = response.get("xPositionLudwig").asInt();
-                int yPositionLudwig = response.get("yPositionLudwig").asInt();
-                int ludwigHeight = response.get("ludwigHeight").asInt();
-                double distanceToRescuer = calculateDistance(xPositionLudwig, yPositionLudwig, ludwigHeight);
 
-                Node node = new Node(yPositionLudwig+"-"+xPositionLudwig, xPositionLudwig, yPositionLudwig, ludwigHeight, distanceToRescuer);
-                ludwigs.add(node);
-
-                this.replyMessage("INFORM", ACLMessage.CONFIRM, "");
 
             }else if(in.getPerformative() == ACLMessage.PROPOSE){
                 if(canExecuteMove("drone", in.getContent())) {
@@ -132,17 +113,6 @@ public class Listener extends BasicDrone {
                 Info("Error en Listener, mensaje no contemplado: " + in.toString());
             }
         }
-    }
-
-    private double calculateDistance(int xPositionLudwig, int yPositionLudwig, int ludwigHeight) {
-        int xPositionRescuer = drones.get(3).getxPosition();
-        int yPositionRescuer = drones.get(3).getyPosition();
-        int heightRescuer = drones.get(3).getDroneHeight();
-        int dX = xPositionLudwig - xPositionRescuer;
-        int dY = yPositionLudwig - yPositionRescuer;
-        int dH = ludwigHeight - heightRescuer;
-
-        return (Math.sqrt(Math.pow(dX, 2)+Math.pow(dY, 2)) + dH);
     }
 
     /**

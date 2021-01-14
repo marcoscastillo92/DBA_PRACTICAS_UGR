@@ -5,12 +5,23 @@ import com.eclipsesource.json.*;
 import jade.core.AID;
 import jade.lang.acl.ACLMessage;
 
+import java.util.Comparator;
+import java.util.PriorityQueue;
+
+class LudwigComparator implements Comparator<Node> {
+    public int compare(Node n1, Node n2) {
+        return (int)n1.getDistanceToRescuer() - (int)n2.getDistanceToRescuer();
+    }
+}
+
 public class Rescuer extends MoveDrone {
 
     @Override
     public void setup(){
         super.setup();
         status = Status.LISTENNING;
+        keepAliveSession = true;
+        ludwigs = new PriorityQueue<Node>(new LudwigComparator());
     }
     
     @Override
@@ -75,5 +86,84 @@ public class Rescuer extends MoveDrone {
                 break;
                 
         }
+    }
+    
+    // Se ejecuta solo si esta encima de el
+    public boolean takeLudwig(int targetHeight){
+        int height = this.getDroneHeight();
+        JsonObject rescate = new JsonObject();
+        
+        if(height == targetHeight){
+            rescate.add("operation", "rescue");
+            
+            this.replyMessage("REGULAR", ACLMessage.REQUEST, rescate.toString());
+            
+            
+        }
+        else{
+            Info("Se baja a por el Ludwig");
+            
+            this.land();
+            this.replyMessage("REGULAR", ACLMessage.REQUEST, rescate.toString());
+        }
+        
+        in = this.blockingReceive();
+        
+        if(in.getPerformative() == ACLMessage.CONFIRM){
+            Info("Se ha recogido el Ludwig");
+            return true;
+        }
+        else{
+            Info("No se ha podido recoger al Ludwig");
+            return false;
+        }
+    }
+    
+    //Llevar a casa
+    public boolean rescueLudwig(){
+        return false;
+    }
+    
+
+    /**
+     * Método para actualizar la cola con prioridad en base a la nueva distancia al rescuer
+     * y recalcular ruta si hay alguno más cercano
+     * @author Marcos Castillo
+     */
+    public void updateDistanceToLudwigsInQueue(){
+        if(!ludwigs.isEmpty()){
+            int[] positionRescuer = getActualPosition();
+            Node oldObjective = ludwigs.peek();
+            for(Node ludwig : ludwigs){
+                int dX = ludwig.getX() - positionRescuer[0];
+                int dY = ludwig.getY() - positionRescuer[1];
+                int dH = ludwig.getHeight() - getDroneHeight();
+                ludwig.setDistanceToRescuer(Math.sqrt(Math.pow(dX, 2)+Math.pow(dY, 2)) + dH);
+            }
+            Node newObjective = ludwigs.peek();
+            if(newObjective != oldObjective){
+                this.findRoute(positionRescuer[0], positionRescuer[1], newObjective.getX(), newObjective.getY());
+            }
+        }
+    }
+
+    @Override
+    public boolean listenForMessages(){
+        ACLMessage aux = this.blockingReceive();
+        if(name.equals(droneNames.get("rescuer")) && aux.getPerformative() == ACLMessage.INFORM_REF){
+            JsonObject response = new JsonObject(Json.parse(in.getContent()).asObject());
+            //Ludwig founded
+            int xPositionLudwig = response.get("xPositionLudwig").asInt();
+            int yPositionLudwig = response.get("yPositionLudwig").asInt();
+            int ludwigHeight = response.get("ludwigHeight").asInt();
+            double distanceToRescuer = calculateDistance(xPositionLudwig, yPositionLudwig, ludwigHeight);
+
+            Node node = new Node(yPositionLudwig+"-"+xPositionLudwig, xPositionLudwig, yPositionLudwig, ludwigHeight, distanceToRescuer);
+            ludwigs.add(node);
+
+            updateDistanceToLudwigsInQueue();
+            return true;
+        }
+        return false;
     }
 }
