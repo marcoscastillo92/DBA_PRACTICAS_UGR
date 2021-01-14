@@ -19,7 +19,7 @@ public class Listener extends BasicDrone {
     int tries, cancelRequested;
     JsonObject contentMessage;
     Set<String> shops;
-    List<DroneInfo> drones;
+    HashMap<String, DroneInfo> drones;
     PriorityQueue<Node> ludwigs;
     
     @Override
@@ -30,11 +30,11 @@ public class Listener extends BasicDrone {
         cancelRequested = 0;
         contentMessage = new JsonObject();
         name = droneNames.get("listener");
-        drones = new ArrayList<>();
-        drones.add(new DroneInfo(droneNames.get("seeker1")));
-        drones.add(new DroneInfo(droneNames.get("seeker2")));
-        drones.add(new DroneInfo(droneNames.get("seeker3")));
-        drones.add(new DroneInfo(droneNames.get("rescuer")));
+        drones = new HashMap<String, DroneInfo>();
+        drones.put("seeker1", new DroneInfo(droneNames.get("seeker1")));
+        drones.put("seeker2", new DroneInfo(droneNames.get("seeker2")));
+        drones.put("seeker3", new DroneInfo(droneNames.get("seeker3")));
+        drones.put("rescuer", new DroneInfo(droneNames.get("rescuer")));
         ludwigs = new PriorityQueue<Node>(new LudwigComparator());
         subscribed = false;
         loggedInWorld = false;
@@ -84,15 +84,52 @@ public class Listener extends BasicDrone {
         }
     }
     
-    private boolean canExecuteMove(String agent, String move) {
-        boolean canExecute = false;
+    private boolean canExecuteMove(String agent, JsonObject message) {
+        boolean canExecute = true;
         
-        for(DroneInfo drone : drones) {
-            if(!agent.equals(drone.getName())) {
-                
+        for(DroneInfo drone : drones.values()) {
+            if(agent.equals(drone.getName())) {
+                int nextXMove = message.get("xPosition").asInt();
+                int nextYMove = message.get("yPosition").asInt();
+                int nextHeight = message.get("droneHeight").asInt();
+                int energyLeft = message.get("energy").asInt();
+                switch(message.get("operation").toString()){
+                    case "moveF":
+                        for(DroneInfo dron : drones.values()){
+                            if(dron.getxPosition() == nextXMove && dron.getyPosition() == nextYMove){
+                                canExecute = false;
+                            }
+                        }
+                        if(canExecute){
+                        }
+                        break;
+                    case "touchD":
+                    case "moveUP":
+                    case "moveD":
+                        for(DroneInfo dron : drones.values()){
+                            if(dron.getxPosition() == nextXMove && dron.getyPosition() == nextYMove && dron.getDroneHeight() == nextHeight){
+                                canExecute = false;
+                            }
+                        }
+                        break;
+                    case "recharge":
+                        if((drones.get("rescuer").getEnergy() <= 100/2.5) && !agent.equals(drones.get("rescuer").getName())){
+                            canExecute = false;
+                        }
+                        break;
+                    default:
+                        canExecute = true;
+                        break;
+                }
+                if(canExecute){
+                    drone.setDroneHeight(nextHeight);
+                    drone.setxPosition(nextXMove);
+                    drone.setyPosition(nextYMove);
+                    drone.setEnergy(energyLeft);
+                }
             }
         }
-        
+
         return canExecute;
     }
     
@@ -102,27 +139,15 @@ public class Listener extends BasicDrone {
 
         if(in != null){
             JsonObject response = new JsonObject(Json.parse(in.getContent()).asObject());
+
             if(in.getPerformative() == ACLMessage.CANCEL){
                 this.replyMessage("ANALITYCS", ACLMessage.CONFIRM, "");
                 cancelRequested++;
                 if(cancelRequested > 3){
                     status = Status.CANCEL_WM;
                 }
-            }else if(in.getPerformative() == ACLMessage.INFORM){
-                //Ludwig founded
-                // TODO save position of Ludwig and queue by priority
-                int xPositionLudwig = response.get("xPositionLudwig").asInt();
-                int yPositionLudwig = response.get("yPositionLudwig").asInt();
-                int ludwigHeight = response.get("ludwigHeight").asInt();
-                double distanceToRescuer = calculateDistance(xPositionLudwig, yPositionLudwig, ludwigHeight);
-
-                Node node = new Node(yPositionLudwig+"-"+xPositionLudwig, xPositionLudwig, yPositionLudwig, ludwigHeight, distanceToRescuer);
-                ludwigs.add(node);
-
-                this.replyMessage("INFORM", ACLMessage.CONFIRM, "");
-
             }else if(in.getPerformative() == ACLMessage.PROPOSE){
-                if(canExecuteMove("drone", response.get("operation").toString())) {
+                if(canExecuteMove(in.getSender().getName(), response)) {
                     this.replyMessage("INFORM", ACLMessage.CONFIRM, "");
                     //Actualizar droneInfo
                 }else{
@@ -132,17 +157,6 @@ public class Listener extends BasicDrone {
                 Info("Error en Listener, mensaje no contemplado: " + in.toString());
             }
         }
-    }
-
-    private double calculateDistance(int xPositionLudwig, int yPositionLudwig, int ludwigHeight) {
-        int xPositionRescuer = drones.get(3).getxPosition();
-        int yPositionRescuer = drones.get(3).getyPosition();
-        int heightRescuer = drones.get(3).getDroneHeight();
-        int dX = xPositionLudwig - xPositionRescuer;
-        int dY = yPositionLudwig - yPositionRescuer;
-        int dH = ludwigHeight - heightRescuer;
-
-        return (Math.sqrt(Math.pow(dX, 2)+Math.pow(dY, 2)) + dH);
     }
 
     /**
@@ -345,20 +359,20 @@ public class Listener extends BasicDrone {
     private void setDronePosition(String name, int x, int y) {
         switch(name) {
             case "ALMIRALL_SEEKER1":
-                drones.get(0).setxPosition(x);
-                drones.get(0).setyPosition(y);
+                drones.get("seeker1").setxPosition(x);
+                drones.get("seeker1").setyPosition(y);
                 break;
             case "ALMIRALL_SEEKER2":
-                drones.get(1).setxPosition(x);
-                drones.get(1).setyPosition(y);
+                drones.get("seeker2").setxPosition(x);
+                drones.get("seeker2").setyPosition(y);
                 break;
             case "ALMIRALL_SEEKER3":
-                drones.get(2).setxPosition(x);
-                drones.get(2).setyPosition(y);
+                drones.get("seeker3").setxPosition(x);
+                drones.get("seeker3").setyPosition(y);
                 break;
             case "ALMIRALL_RESCUER":
-                drones.get(3).setxPosition(x);
-                drones.get(3).setyPosition(y);
+                drones.get("rescuer").setxPosition(x);
+                drones.get("rescuer").setyPosition(y);
                 break;
         }
     }
@@ -381,7 +395,7 @@ public class Listener extends BasicDrone {
 
         this.initMessage("ALMIRALL_AWACS", "REGULAR", "", ACLMessage.QUERY_IF, conversationID, replyWith);
 
-        for(DroneInfo drone : drones) {
+        for(DroneInfo drone : drones.values()) {
             try{
                 Thread.sleep(5000);
             }catch (Exception e){

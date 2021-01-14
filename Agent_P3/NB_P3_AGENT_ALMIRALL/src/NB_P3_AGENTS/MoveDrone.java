@@ -28,7 +28,8 @@ class sensorComparator implements Comparator<Sensor> {
 public abstract class MoveDrone extends BasicDrone {
     protected Status status;
     protected ArrayList<String> wallet;
-    private int xPosition, yPosition, droneHeight, energy;
+    private int xPosition, yPosition, droneHeight, energy, xNextPosition, yNextPosition, nextHeight, nextEnergy;
+    public int xOrigin, yOrigin;
     List<String> shops;
     Graph<Node> graphMap;
     RouteFinder<Node> routeFinder;
@@ -55,6 +56,12 @@ public abstract class MoveDrone extends BasicDrone {
         objectiveFounded = new Node("11-1", 1, 11, 239); //PARA MOCKUP se ha de hacer bien cuando se encuentre un Ludwig
         tiendas = new ArrayList<>();
         sensors = new HashMap<String, Sensor>();
+        xNextPosition = -1;
+        yNextPosition = -1;
+        nextHeight = -1;
+        nextEnergy = -1;
+        xOrigin = -1;
+        yOrigin = -1;
     }
     
     /**
@@ -89,6 +96,8 @@ public abstract class MoveDrone extends BasicDrone {
 
                 xPosition = contentObject.get("xPosition").asInt();
                 yPosition = contentObject.get("yPosition").asInt();
+                xOrigin = contentObject.get("xPosition").asInt();
+                yOrigin = contentObject.get("yPosition").asInt();
 
                 return true;
             }
@@ -375,8 +384,6 @@ public abstract class MoveDrone extends BasicDrone {
     }
     
     public void land(){
-        int altura = this.getDroneHeight();
-        
         ArrayList<String> landActions = new ArrayList<>();
         while (!this.isLanded()) {
             if (this.canExecuteNextAction("touchD")) {
@@ -432,39 +439,53 @@ public abstract class MoveDrone extends BasicDrone {
         JsonObject action = new JsonObject();
         action.add("operation", actionToPerform);
 
-        this.initMessage(droneNames.get("listener"), "REGULAR", action.toString(), ACLMessage.PROPOSE, "INTERN", name);
+        boolean canExecute = canExecuteNextAction(action.get("operation").toString());
 
-        MessageTemplate t = MessageTemplate.MatchSender(new AID(droneNames.get("listener")));
-        in = this.blockingReceive(t);
+        if(canExecute){
+            JsonObject message = new JsonObject();
+            message.add("operation", actionToPerform);
+            message.add("xPosition", xNextPosition);
+            message.add("yPosition", yNextPosition);
+            message.add("droneHeight", nextHeight);
+            message.add("energy", nextEnergy);
 
-        if(in.getPerformative() == ACLMessage.CONFIRM){
-            //TODO Send action to WorldManager if it's executable action
-            this.initMessage(worldManager, "REGULAR", action.toString(), ACLMessage.REQUEST, conversationID, "");
-            MessageTemplate template = MessageTemplate.MatchSender(new AID(worldManager));
-            in = this.blockingReceive(template);
-            if( in.getPerformative() == ACLMessage.CONFIRM){
-                Info("Va a ejecutar acción: " + actionToPerform);
-                replyWith = in.getReplyWith();
-                conversationID = in.getConversationId();
-            }else{
-                Info("World manager no permite realizar esta acción: " +actionToPerform);
-                // TODO: ¿QUÉ HACER? EXIT o INFORMAR A LISTENER Y DESPUES DE "X" VECES EXIT
-            }
-        } else {
-            //Si es acción ejecutable que no sea recargar sleep y devolvemos falso para volver a intentarlo más tarde
-          if(!actionToPerform.equals("recharge")){
-              try{
-                  Thread.sleep(2000);
-              }catch(Exception e){
-                  Info("Excepción al dormir en acción: " + e);
+            this.initMessage(droneNames.get("listener"), "REGULAR", action.toString(), ACLMessage.PROPOSE, "INTERN", name);
+
+            MessageTemplate t = MessageTemplate.MatchSender(new AID(droneNames.get("listener")));
+            in = this.blockingReceive(t);
+
+            if(in.getPerformative() == ACLMessage.CONFIRM){
+                //TODO Send action to WorldManager if it's executable action
+                this.initMessage(worldManager, "REGULAR", action.toString(), ACLMessage.REQUEST, conversationID, "");
+                MessageTemplate template = MessageTemplate.MatchSender(new AID(worldManager));
+                in = this.blockingReceive(template);
+                if( in.getPerformative() == ACLMessage.CONFIRM){
+                    Info("Va a ejecutar acción: " + actionToPerform);
+                    replyWith = in.getReplyWith();
+                    conversationID = in.getConversationId();
+                    updateActualInfo(actionToPerform);
+                }else{
+                    Info("World manager no permite realizar esta acción: " +actionToPerform);
+                    status = Status.EXIT;
+                    // TODO: ¿QUÉ HACER? EXIT o INFORMAR A LISTENER Y DESPUES DE "X" VECES EXIT
+                }
+            } else {
+                //Si es acción ejecutable que no sea recargar sleep y devolvemos falso para volver a intentarlo más tarde
+              if(!actionToPerform.equals("recharge")){
+                  try{
+                      Thread.sleep(2000);
+                  }catch(Exception e){
+                      Info("Excepción al dormir en acción: " + e);
+                  }
+
+              }else{
+                  //Mandamos coins al rescuer
+                  sendCoin(droneNames.get("rescuer"));
+                  return true;
               }
-
-          }else{
-              //Mandamos coins al rescuer
-              sendCoin(droneNames.get("rescuer"));
-              return true;
-          }
+            }
         }
+        Info("No puede ejecutar la acción pedida: "+actionToPerform);
         return false;
     }
 
@@ -540,7 +561,6 @@ public abstract class MoveDrone extends BasicDrone {
     
     public void moveToNode(Node from, Node to, double compass) {
         // Cuanto se tiene que mover en el eje x y cuanto en el y
-        nextNode = to;
         int diffX = (int) (to.getX() - from.getX());
         int diffY = (int) (to.getY() - from.getY());
         int d = 0;
@@ -692,32 +712,58 @@ public abstract class MoveDrone extends BasicDrone {
         int z = getDroneHeight();
         int [] dronePosition = getActualPosition();
         Node actualNode = graphMap.getNode(dronePosition[1]+"-"+dronePosition[0]);
-        Node nextNode = getNextNode("actiooooooon");
 
         switch(nextAction) {
             case "moveF":
                 //Si no estoy mirando a la forntera y el siguiente nodo tiene altura menor o igual
                 if(!this.isLookingOutOfFrontier()){
+                    Node nextNode = getNextNode(nextAction);
                     //puedo ejecutar accion si mi altura es mayor o igual que la altura de la siguiente casilla
-                    canExecute = z >= nextNode.getHeight();
+                    if(nextNode != null){
+                        canExecute = z >= nextNode.getHeight();
+                        if(canExecute){
+                            nextEnergy = name.contains("RESCUER") ? energy - 4 : energy - 1;
+                        }
+                    }else{
+                        Info("Next node en canExecuteNextAction es nulo, acción: " + nextAction + " POSICIÓN: " + dronePosition.toString());
+                    }
                 }
                 break;
             case "touchD":
                 if((z - actualNode.getHeight()) <= 5){
                     canExecute = true;
+                    nextHeight = actualNode.getHeight();
+                    nextEnergy = name.contains("RESCUER") ? energy - ((getDroneHeight() - actualNode.getHeight())*4) : energy - (getDroneHeight() - actualNode.getHeight());
                 }
                 break;
             case "moveUP":
                 if(z < actualNode.MAX_HEIGHT ){
                     canExecute = true;
+                    nextHeight = getDroneHeight() + 5;
+                    nextEnergy = name.contains("RESCUER") ? energy - 20 : energy - 1;
                 }
                 break;
             case "moveD":
-                if((z - actualNode.getHeight()) >= 5)
+                if((z - actualNode.getHeight()) >= 5){
+                    canExecute = true;
+                    nextHeight = getDroneHeight() - 5;
+                    nextEnergy = name.contains("RESCUER") ? energy - 20 : energy - 1;
+                }
                     break;
+            case "readSensors":
+                int cost = 0;
+                for(Sensor sensor : sensors.values()){
+                    if(sensor.getName().matches(".*HQ")){
+                        cost += 4;
+                    }else if(sensor.getName().matches(".*DLX")){
+                        cost += 8;
+                    }else{
+                        cost++;
+                    }
+                }
+                nextEnergy = energy - cost;
             case "rotateL":
             case "rotateR":
-            case "readSensors":
             case "rescue":
                 canExecute = true;
                 break;
@@ -727,7 +773,53 @@ public abstract class MoveDrone extends BasicDrone {
     }
 
     public Node getNextNode(String action) {
-        return nextNode;
+        int[] dronePosition = getActualPosition();
+
+        if(action.equals("moveF")){
+            double compass = sensors.get("compass").getValue();
+            if (compass % 45 != 0) {
+                double aux = compass / 45;
+                aux = Math.round(aux);
+                compass = aux * 45;
+            }
+            switch((int)compass){
+                case 0:
+                    xNextPosition = dronePosition[0];
+                    yNextPosition = dronePosition[1]-1;
+                    break;
+                case 45:
+                    xNextPosition = dronePosition[0]+1;
+                    yNextPosition = dronePosition[1]-1;
+                    break;
+                case 90:
+                    xNextPosition = dronePosition[0]+1;
+                    yNextPosition = dronePosition[1];
+                    break;
+                case 135:
+                    xNextPosition = dronePosition[0]+1;
+                    yNextPosition = dronePosition[1]+1;
+                    break;
+                case 180:
+                    xNextPosition = dronePosition[0];
+                    yNextPosition = dronePosition[1]+1;
+                    break;
+                case -45:
+                    xNextPosition = dronePosition[0]-1;
+                    yNextPosition = dronePosition[1]-1;
+                    break;
+                case -90:
+                    xNextPosition = dronePosition[0]-1;
+                    yNextPosition = dronePosition[1];
+                    break;
+                case -135:
+                    xNextPosition = dronePosition[0]-1;
+                    yNextPosition = dronePosition[1]+1;
+                    break;
+            }
+            nextNode = graphMap.getNode(yNextPosition+"-"+xNextPosition);
+            return nextNode;
+        }
+        return null;
     }
 
     public boolean isLookingOutOfFrontier() {
