@@ -38,7 +38,7 @@ public abstract class MoveDrone extends BasicDrone {
     PriorityQueue<Node> ludwigs;
     PriorityQueue<Sensor> products;
     ArrayList<String> tiendas;
-    ArrayList<Sensor> sensors;
+    HashMap<String, Sensor> sensors;
     
     @Override
     public void setup(){
@@ -52,7 +52,7 @@ public abstract class MoveDrone extends BasicDrone {
         keepAliveSession = true;
         objectiveFounded = new Node("11-1", 1, 11, 239); //PARA MOCKUP se ha de hacer bien cuando se encuentre un Ludwig
         tiendas = new ArrayList<>();
-        sensors = new ArrayList<Sensor>();
+        sensors = new HashMap<String, Sensor>();
     }
     
     /**
@@ -97,10 +97,13 @@ public abstract class MoveDrone extends BasicDrone {
     public boolean loginWorld() {
         if(!loggedInWorld) {
             JsonObject loginJson = new JsonObject();
-            JsonArray sensors = new JsonArray();
+            JsonArray sensorsJson = new JsonArray();
 
+            for(Sensor sensor : sensors.values()){
+                sensorsJson.add(sensor.getName());
+            }
             loginJson.add("operation", "login");
-            loginJson.add("attach", sensors);
+            loginJson.add("attach", sensorsJson);
             loginJson.add("posx", xPosition);
             loginJson.add("posy", yPosition);
 
@@ -316,14 +319,15 @@ public abstract class MoveDrone extends BasicDrone {
     
     public void getSensors(){
         boolean thermalbought = false;
-        boolean bought;
         
         for (String sensor:tiendas){
             for (Sensor s:products){
-                if((s.getName().contains("THERMAL") && !thermalbought) || !s.getName().contains("THERMAL")){
-                    bought = this.buy(s.getShop(), s.getName(), s.getPrice());
-                    if(s.getName().contains(sensor) && s.getName().contains("THERMAL") && bought){
-                        thermalbought = true;
+                if(!s.getName().contains("THERMAL") || !thermalbought){
+                    if(this.buy(s.getShop(), s.getName(), s.getPrice())){
+                        if(s.getName().contains(sensor) && s.getName().contains("THERMAL")){
+                            thermalbought = true;
+                        }
+                        sensors.put(s.getName(), s);
                     }
                 }
             }
@@ -499,10 +503,10 @@ public abstract class MoveDrone extends BasicDrone {
                 break;
             case "readSensors":
                 int cost = 0;
-                for(String sensor : sensors){
-                    if(sensor.matches(".*HQ")){
+                for(Sensor sensor : sensors.values()){
+                    if(sensor.getName().matches(".*HQ")){
                         cost += 4;
-                    }else if(sensor.matches(".*DLX")){
+                    }else if(sensor.getName().matches(".*DLX")){
                         cost += 8;
                     }else{
                         cost++;
@@ -531,5 +535,147 @@ public abstract class MoveDrone extends BasicDrone {
         }
             
         return is;
+    }
+
+    public boolean canExecuteNextAction(String nextAction) {
+        boolean canExecute = false;
+        if(nextAction == null && !actions.isEmpty()){
+            nextAction = actions.get(0);
+        }
+        int z = getDroneHeight();
+        int [] dronePosition = getActualPosition();
+        Node actualNode = graphMap.getNode(dronePosition[1]+"-"+dronePosition[0]);
+        Node nextNode = getNextNode("actiooooooon");
+
+        switch(nextAction) {
+            case "moveF":
+                //Si no estoy mirando a la forntera y el siguiente nodo tiene altura menor o igual
+                if(!this.isLookingOutOfFrontier()){
+                    //puedo ejecutar accion si mi altura es mayor o igual que la altura de la siguiente casilla
+                    canExecute = z >= nextNode.getHeight();
+                }
+                break;
+            case "touchD":
+                if((z - actualNode.getHeight()) <= 5){
+                    canExecute = true;
+                }
+                break;
+            case "moveUP":
+                if(z < actualNode.MAX_HEIGHT ){
+                    canExecute = true;
+                }
+                break;
+            case "moveD":
+                if((z - actualNode.getHeight()) >= 5)
+                    break;
+            case "rotateL":
+            case "rotateR":
+            case "readSensors":
+            case "rescue":
+                canExecute = true;
+                break;
+        }
+
+        return canExecute;
+    }
+
+    public Node getNextNode(String action) {
+        int[] dronePosition = getActualPosition();
+        if(action.equals("moveF")){
+
+            return ;
+        }else{
+            return graphMap.getNode(dronePosition[1]+"-"+dronePosition[0]);
+        }
+    }
+
+    public boolean isLookingOutOfFrontier() {
+        int [] dronePosition = getActualPosition();
+        int x = dronePosition[0];
+        int y = dronePosition[1];
+        boolean outOfFrontier = false;
+        String lookingAt = whereIsLooking();
+        if(((x >= map.getWidth() - 1 || x <= 0) && !lookingAt.equals("N") && !lookingAt.equals("S")) ||
+                ((y >= map.getHeight() - 1 || y <= 0) && !lookingAt.equals("W") && !lookingAt.equals("E"))){
+            outOfFrontier = true;
+        }
+        return outOfFrontier;
+    }
+
+    /**
+     * Devuelve en String hacia donde está encarado el agente
+     * @author Marcos
+     * @return dirección a la que mira el agente
+     */
+    public String whereIsLooking(){
+        String lookingAt = "";
+        switch((int)sensors.get("compass").getValue()){
+            case 0:
+                lookingAt = "N";
+                break;
+            case 45:
+                lookingAt = "NE";
+                break;
+            case 90:
+                lookingAt = "E";
+                break;
+            case 135:
+                lookingAt = "SE";
+                break;
+            case 180:
+                lookingAt = "S";
+                break;
+            case -45:
+                lookingAt = "NW";
+                break;
+            case -90:
+                lookingAt = "W";
+                break;
+            case -135:
+                lookingAt = "SW";
+                break;
+        }
+        return lookingAt;
+    }
+
+    public void updateActualInfo(String action){
+        this.updateEnergy(action);
+        switch(action){
+            case "moveF":
+                //Actualizar gpsActual
+                setActualPosition();
+                break;
+            case "rotateL":
+                if(sensors.get("compass").getValue() <= -135){
+                    sensors.get("compass").setValue(180);
+                }else{
+                    sensors.get("compass").setValue(-45);
+                }
+                break;
+            case "rotateR":
+                if(sensors.get("compass").getValue() >= 185){
+                    sensors.get("compass").setValue(-135);
+                }else{
+                    sensors.get("compass").setValue(45);
+                }
+                break;
+            case "touchD":
+                //Aterriza y está en z 0
+                int[] dronePosition = getActualPosition();
+                droneHeight = graphMap.getNode(dronePosition[1]+"-"+dronePosition[0]).getHeight();
+                break;
+            case "moveUP":
+                droneHeight += 5;
+                break;
+            case "moveD":
+                droneHeight -= 5;
+                break;
+        }
+        //this.showTrackingInfo();
+    }
+
+    public void setActualPosition() {
+        xPosition = 0;
+        yPosition = 0;
     }
 }

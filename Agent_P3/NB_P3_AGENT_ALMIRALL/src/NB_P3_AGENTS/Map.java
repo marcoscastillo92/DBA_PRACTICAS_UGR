@@ -129,4 +129,8 @@ public class Map {
     public Set<Node> asSet(){
         return mapSet;
     }
+
+    public int getHeight(){ return height; }
+
+    public int getWidth(){ return width; }
 }
