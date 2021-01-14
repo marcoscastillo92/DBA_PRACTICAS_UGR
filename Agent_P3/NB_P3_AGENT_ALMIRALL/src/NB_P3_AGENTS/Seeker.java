@@ -133,10 +133,7 @@ public class Seeker extends MoveDrone {
                             if (!continuar) {
                                 status = Status.EXIT;
                             }
-                            // Si encuentra, empieza a moverse hacia ahi
-                            else {
-                                status = Status.ACTING;
-                            }
+                            // Si encuentra, vuelve a PLANNING para calcular la ruta
                         }
                     }
                     // Si no tiene energia recarga
@@ -310,19 +307,19 @@ public class Seeker extends MoveDrone {
     */
     private boolean findNewNode() {
         Node temp;
-        boolean fin = false;
+        boolean continuar = false;
         
-        for (int i = 0; i < map.getWidth() && !fin; i++) {
-            for (int j = minHeight; j <= maxHeight && !fin; j++) {
+        for (int i = 0; i < map.getWidth() && !continuar; i++) {
+            for (int j = minHeight; j <= maxHeight && !continuar; j++) {
                 temp = graphMap.getNode(i + "-" + j);
                 if (!temp.isVisited() && temp.getHeight() > 0) {
                     visitar.push(temp);
-                    fin = true;
+                    continuar = true;
                 }
             }
         }
         
-        return fin;
+        return continuar;
     }
     
     // Va completando el mapa conforme el sensor detecta las casillas
