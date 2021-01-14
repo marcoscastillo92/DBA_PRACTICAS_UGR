@@ -406,7 +406,7 @@ public abstract class MoveDrone extends BasicDrone {
         }
     }
 
-    public void requestAction(String actionToPerform){
+    public boolean requestAction(String actionToPerform){
         JsonObject action = new JsonObject();
         action.add("action", actionToPerform);
 
@@ -417,8 +417,21 @@ public abstract class MoveDrone extends BasicDrone {
 
         if(in.getPerformative() == ACLMessage.CONFIRM){
             //TODO Send action to WorldManager if it's executable action
+        } else {
+            //Si es acción ejecutable que no sea recargar sleep y devolvemos falso para volver a intentarlo más tarde
+          if(!actionToPerform.equals("recharge")){
+              try{
+                  Thread.sleep(2000);
+              }catch(Exception e){
+                  Info("Excepción al dormir en acción: " + e);
+              }
+
+          }else{
+              //TODO send coins to Rescuer
+              return true;
+          }
         }
-        // TODO If it's executable action and is not "recharge" wait else send coins to ...
+        return false;
     }
 
     public void informLudwigPositionToRescuer(Node node){
@@ -451,5 +464,43 @@ public abstract class MoveDrone extends BasicDrone {
         int dH = ludwigHeight - getDroneHeight();
 
         return (Math.sqrt(Math.pow(dX, 2)+Math.pow(dY, 2)) + dH);
+    }
+
+    public void updateEnergy(String action){
+        switch (action) {
+            case "moveF":
+            case "rotateL":
+            case "rotateR":
+                energy = name.matches(".*SEEKER.*") ? energy-- : energy - 4;
+                break;
+            case "touchD":
+                int[] dronePosition = getActualPosition();
+                energy -= getDroneHeight() - graphMap.getNode(dronePosition[1]+"-"+dronePosition[0]).getHeight();
+                break;
+            case "moveUP":
+            case "moveD":
+                energy -= 5;
+                break;
+            case "readSensors":
+                int cost = 0;
+                for(String sensor : sensors){
+                    if(sensor.matches(".*HQ")){
+                        cost += 4;
+                    }else if(sensor.matches(".*DLX")){
+                        cost += 8;
+                    }else{
+                        cost++;
+                    }
+                }
+                energy -= cost;
+                break;
+            case "recharge":
+                energy = 1000;
+                break;
+        }
+    }
+
+    public boolean hasEnoughtEnergy(){
+        return energy < 1000/2.5;
     }
 }
