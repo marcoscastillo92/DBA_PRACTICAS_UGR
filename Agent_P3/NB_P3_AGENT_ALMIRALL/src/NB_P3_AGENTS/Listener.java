@@ -39,6 +39,7 @@ public class Listener extends BasicDrone {
         subscribed = false;
         loggedInWorld = false;
         checkedInLarva = false;
+        keepAliveSession = true;
         shops = new HashSet<String>();
     }
     
@@ -46,20 +47,25 @@ public class Listener extends BasicDrone {
     public void plainExecute() {
         switch(status){
             case CHECKIN_LARVA:
-                this.checkIn();
+                keepAliveSession &= this.checkIn();
+                if(!keepAliveSession)
+                    status = Status.EXIT;
                 break;
             case SUBSCRIBE_WM:
-                this.subscribeToWorldManager();
+                keepAliveSession &= this.subscribeToWorldManager();
+                if(!keepAliveSession)
+                    status = Status.CHECKOUT_LARVA;
                 break;
             case SUBSCRIBE_TYPE:
-                this.subscribeByType("LISTENER");
+                keepAliveSession &= this.subscribeByType("LISTENER");
+                if(!keepAliveSession)
+                    status = Status.CANCEL_WM;
                 break;
             case LISTENNING:
                 //status = Status.PLANNING;
                 listenForMessages();
                 break;
             case PLANNING:
-                //status = Status.CANCEL_WM;
                 status = Status.LISTENNING;
                 break;
             case CANCEL_WM:
@@ -142,19 +148,19 @@ public class Listener extends BasicDrone {
     /**
      * Función que hace el checkin en Larva al Identity Manager y llama a obtener las YellowPages
      * @author Marcos Castillo
-     * @return ACLMessage respuesta
+     * @return boolean respuesta
      */
-    public ACLMessage checkIn(){
+    public boolean checkIn(){
         Info("Intenta hacer el checkin en Larva");
         if (!checkedInLarva) {
             this.initMessage(_identitymanager, "ANALYTICS", "", ACLMessage.SUBSCRIBE);
 
-            in = this.blockingReceive(10000);
+            in = this.blockingReceive();
             System.out.println("RESPUESTA CHECKIN: "+in);
             if(in.getPerformative() == ACLMessage.CONFIRM || in.getPerformative() == ACLMessage.INFORM){
                 Info("Checkin confirmed in the platform");
                 checkedInLarva = true;
-                return this.getYellowPages(in);
+                return this.getYellowPages();
             }else{
                 System.out.println("No se ha podido ejecutar el login correctamente, saliendo de la ejecución.");
                 //this.abortSession();
@@ -164,39 +170,38 @@ public class Listener extends BasicDrone {
             Info("Está logueado en LARVA e intenta volver a loguearse: " + in.toString());
             status = Status.CHECKOUT_LARVA;
         }
-        return in;
+        return false;
     }
     
     /**
      * Función que obtiene las YellowPages por primera vez para encontrar el proveedor de servicio
      * @author Marcos Castillo
      * @params ACLMessage in Mensaje para el hilo de la conversación
-     * @return ACLMessage respuesta
+     * @return boolean respuesta
      */
-    private ACLMessage getYellowPages(ACLMessage in) {
+    private boolean getYellowPages() {
         this.replyMessage("ANALYTICS", ACLMessage.QUERY_REF, "");
         
-        in = this.blockingReceive(10000);
+        in = this.blockingReceive();
         if(in != null && (in.getPerformative() == ACLMessage.CONFIRM || in.getPerformative() == ACLMessage.INFORM)){
             yp = new YellowPages();
             yp.updateYellowPages(in);
             System.out.println("YellowPages: "+yp.prettyPrint());
             worldManager = yp.queryProvidersofService(service).iterator().next();
             if(worldManager.equals("")){
-                //No hay servicio en las YellowPages asociado, se aborta
-                //this.abortSession();
+                //No hay servicio en las YellowPages asociado, se cierra
                 status = Status.CHECKOUT_LARVA;
             }else{
                 System.out.println("Proveedor "+worldManager);
                 status = Status.SUBSCRIBE_WM;
+                return true;
             }
         }else{
             String message = in != null ? in.toString() : " NULO ";
             System.out.println("No se ha podido obtener correctamente las YellowPages. " + message);
-            //status = Status.LISTENNING;
             status = Status.CHECKOUT_LARVA;
         }
-        return in;
+        return false;
     }
     
     /**
@@ -206,7 +211,7 @@ public class Listener extends BasicDrone {
     public void checkOut(){
         this.initMessage(_identitymanager, "ANALYTICS", "", ACLMessage.CANCEL, conversationID, replyWith);
         /*
-        in = this.blockingReceive(10000);
+        in = this.blockingReceive();
         if(in.getPerformative() == ACLMessage.INFORM){
         */
             //this.doExit();
@@ -217,9 +222,9 @@ public class Listener extends BasicDrone {
     /**
      * Función que se suscribe por primera vez al WM para iniciar la conversación con el y obtiene el Mapa
      * @author Marcos Castillo
-     * @return ACLMessage respuesta
+     * @return boolean respuesta
      */
-    public ACLMessage subscribeToWorldManager() {
+    public boolean subscribeToWorldManager() {
         if(!loggedInWorld){
             String subscribe_world = "{\"problem\":\""+id_problema+"\"}";
             this.initMessage(worldManager, "ANALYTICS", subscribe_world, ACLMessage.SUBSCRIBE);
@@ -248,13 +253,15 @@ public class Listener extends BasicDrone {
                                 Info("########################## TIENDAS SIN SHOPS@: " + shops);
                             }else{
                                 Info("Shops vacías: " +shops);
+                                return false;
                             }
                         }
 
                         status = Status.SUBSCRIBE_TYPE;
+                        return true;
                     }else{
                         System.out.println("Error 2 no se ha obtenido el mapa en la subscripción: " + replyObj.toString());
-                        status = Status.CHECKOUT_LARVA;
+                        status = Status.CANCEL_WM;
                     }
                 }else{
                     System.out.println("Error en la suscripción al agente: " +in.toString());
@@ -268,16 +275,16 @@ public class Listener extends BasicDrone {
             Info("Intenta volver a loguearse en el WM :" + in.toString());
             status = Status.CANCEL_WM;
         }
-        return in;
+        return false;
     }
     
     /**
      * Función que se suscribe al WM por tipo de DRONE.
      * @author Marcos Castillo
      * @param type String Tipo de DRONE "LISTENER", "RESCUER" o "SEEKER"
-     * @return ACLMessage respuesta
+     * @return boolean respuesta
      */
-    public ACLMessage subscribeByType(String type){
+    public boolean subscribeByType(String type){
         String subscribe_type = "{\"type\":\""+type+"\"}";
 
         if(!subscribed) {
@@ -293,6 +300,7 @@ public class Listener extends BasicDrone {
                     subscribed = true;
                     this.sendInitMessage();
                     status = Status.LISTENNING;
+                    return true;
                 }else{
                     System.out.println("No se ha podido empezar partida, se deberá solicitar de nuevo");
                     status = Status.CHECKOUT_LARVA;
@@ -306,7 +314,7 @@ public class Listener extends BasicDrone {
             Info("Suscrito por tipo y vuelve a intentarlo: " + in.toString());
             status = Status.CANCEL_WM;
         }
-        return in;
+        return false;
     }
 
     /**
@@ -317,7 +325,7 @@ public class Listener extends BasicDrone {
         //Refresh YellowPages with shops
         this.initMessage(_identitymanager, "ANALYTICS", "", ACLMessage.QUERY_REF);
         
-        ACLMessage in_aux = this.blockingReceive(10000);
+        ACLMessage in_aux = this.blockingReceive();
         if(in_aux.getPerformative() == ACLMessage.CONFIRM || in_aux.getPerformative() == ACLMessage.INFORM){
             yp.updateYellowPages(in_aux);
             System.out.println(in.toString());
