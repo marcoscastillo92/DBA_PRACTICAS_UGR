@@ -1,6 +1,7 @@
 package NB_P3_AGENTS;
 
 import jade.lang.acl.ACLMessage;
+import java.util.ArrayList;
 import java.util.Stack;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -312,15 +313,24 @@ public class Seeker extends MoveDrone {
     private void paint() {
         int[] actualPosition = this.getActualPosition();
         int distance = (int) sensorSize / 2;
+        int auxi = 0, auxj = 0;
+        ArrayList<ArrayList<Integer>> thermal = sensors.get("THERMAL").getValueArray();
         
         for (int i = actualPosition[0] - distance; i <= actualPosition[0] + distance; i++) {
             if (i >= 0 && i < map.getWidth()) {
                 for (int j = actualPosition[1] - distance; j <= actualPosition[1] + distance; j++) {
                     if (j >= 0 && j < map.getHeight()) {
-                        graphMap.getNode(i + "-" + j).setVisited(true);
+                        if (graphMap.getNode(i + "-" + j).getHeight() > 0) {
+                            graphMap.getNode(i + "-" + j).setVisited(true);
+                        }
+                        if (thermal.get(auxi).get(auxj) == 0) {
+                            this.informLudwigPositionToRescuer(graphMap.getNode(i + "-" + j));
+                        }
                     }
+                    auxj++;
                 }
             }
+            auxi++;
         }
         
         // LEER SENSOR THERMAL
