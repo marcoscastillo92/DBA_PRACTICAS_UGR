@@ -12,6 +12,7 @@ public class Seeker extends MoveDrone {
     private Stack<Node> visitar;
     private int maxHeight;
     private int minHeight;
+    private String thermalVersion;
     
     @Override
     public void setup(){
@@ -23,6 +24,7 @@ public class Seeker extends MoveDrone {
         tiendas.add("COMPASS");
         sensorSize = 0;
         visitar = new Stack<>();
+        thermalVersion = "";
         
         if (this.getAID().toString().indexOf('1') > -1) {
             minHeight = 0;
@@ -61,6 +63,20 @@ public class Seeker extends MoveDrone {
                 if(keepAliveSession){
                     this.getProducts();
                     this.getSensors();
+                    
+                    if (this.sensors.containsKey("THERMALDLX")) {
+                        this.thermalVersion = "THERMALDLX";
+                        sensorSize = 31;
+                    }
+                    else if (this.sensors.containsKey("THERMALHQ")) {
+                        this.thermalVersion = "THERMALHQ";
+                        sensorSize = 21;
+                    }
+                    else if (this.sensors.containsKey("THERMAL")) {
+                        this.thermalVersion = "THERMAL";
+                        sensorSize = 7;
+                    }
+                    
                     this.setupCurrentState();
                     //status = Status.PLANNING;
                     status = Status.EXIT;
@@ -314,7 +330,7 @@ public class Seeker extends MoveDrone {
         int[] actualPosition = this.getActualPosition();
         int distance = (int) sensorSize / 2;
         int auxi = 0, auxj = 0;
-        ArrayList<ArrayList<Integer>> thermal = sensors.get("THERMAL").getValueArray();
+        ArrayList<ArrayList<Integer>> thermal = sensors.get(thermalVersion).getValueArray();
         
         for (int i = actualPosition[0] - distance; i <= actualPosition[0] + distance; i++) {
             if (i >= 0 && i < map.getWidth()) {
