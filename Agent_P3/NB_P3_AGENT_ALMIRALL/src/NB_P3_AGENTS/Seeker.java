@@ -113,6 +113,7 @@ public class Seeker extends MoveDrone {
                     if (hasEnoughtEnergy()) {
                         // Mete los nodos vecinos en la pila
                         this.floodFill();
+                        this.paint();
 
                         // Si la pila no esta vacia
                         if (!visitar.empty()) {
