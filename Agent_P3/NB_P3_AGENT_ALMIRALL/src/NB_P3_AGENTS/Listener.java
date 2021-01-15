@@ -365,7 +365,7 @@ public class Listener extends BasicDrone {
      */
     private void setDronePosition(String name, int x, int y) {
         switch(name) {
-            case "ALMIRALL_SEEKER1":
+            case "ALMIRALL_SEEKER11111":
                 drones.get("seeker1").setxPosition(x);
                 drones.get("seeker1").setyPosition(y);
                 break;
@@ -395,12 +395,12 @@ public class Listener extends BasicDrone {
         System.out.println("REPLYWITH " + replyWith);
         contentMessage.add("Shops", shops.toString());
 
-        setDronePosition("ALMIRALL_SEEKER111", 4, 4);
+        setDronePosition("ALMIRALL_SEEKER11111", 3, 3);
 //        setDronePosition("ALMIRALL_SEEKER2", 3, 3);
 //        setDronePosition("ALMIRALL_SEEKER3", 6, 6);
 //        setDronePosition("ALMIRALL_RESCUER", 10, 10);
 
-        this.initMessage("ALMIRALL_AWACS11", "REGULAR", "", ACLMessage.QUERY_IF, conversationID, replyWith);
+        this.initMessage("ALMIRALL_AWACS111", "REGULAR", "", ACLMessage.QUERY_IF, conversationID, replyWith);
 
         for(DroneInfo drone : drones.values()) {
             try{

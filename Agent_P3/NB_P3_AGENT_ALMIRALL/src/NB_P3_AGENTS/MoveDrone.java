@@ -8,6 +8,7 @@ import jade.core.AID;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
 
+import java.lang.reflect.Array;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -45,6 +46,9 @@ public abstract class MoveDrone extends BasicDrone {
     ArrayList<String> tiendas;
     HashMap<String, Sensor> sensors;
     ACLMessage inWorldManager;
+    boolean firstReadDone;
+    public double calculatedCompass;
+    public int calculatedHeight;
     
     @Override
     public void setup(){
@@ -56,6 +60,7 @@ public abstract class MoveDrone extends BasicDrone {
         loggedInWorld = false;
         checkedInLarva = false;
         keepAliveSession = true;
+        firstReadDone = false;
         objectiveFounded = new Node("11-1", 1, 11, 239); //PARA MOCKUP se ha de hacer bien cuando se encuentre un Ludwig
         tiendas = new ArrayList<>();
         sensors = new HashMap<String, Sensor>();
@@ -69,6 +74,7 @@ public abstract class MoveDrone extends BasicDrone {
         boughtSensors = new ArrayList<>();
         xLastReadThermal = -1;
         yLastReadThermal = -1;
+        actions = new ArrayList<String>();
     }
     
     /**
@@ -105,8 +111,10 @@ public abstract class MoveDrone extends BasicDrone {
                 yPosition = contentObject.get("yPosition").asInt();
                 xOrigin = contentObject.get("xPosition").asInt();
                 yOrigin = contentObject.get("yPosition").asInt();
-                xLastReadThermal = xPosition;
-                yLastReadThermal = yPosition;
+                xLastReadThermal = xOrigin;
+                yLastReadThermal = yOrigin;
+                xNextPosition = xPosition;
+                yNextPosition = yPosition;
 
                 return true;
             }
@@ -370,12 +378,24 @@ public abstract class MoveDrone extends BasicDrone {
 
     public boolean buyRecharge(){
         Sensor charge = charge_products.peek();
-        boolean bought = buy(charge.getShop(), charge.getName(), charge.getPrice()) != null;
-        if(bought) {
-            charge_products.poll();
-            updateEnergy("recharge");
+        String bought = buy(charge.getShop(), charge.getName(), charge.getPrice());
+        if(!bought.isEmpty()) {
+            in = inWorldManager;
+            conversationID = inWorldManager.getConversationId();
+            replyWith = inWorldManager.getReplyWith();
+            JsonObject action = new JsonObject();
+            action.add("operation", "recharge");
+            action.add("recharge", bought.replace("\"",""));
+            //this.initMessage(worldManager, "REGULAR", action.toString(), ACLMessage.REQUEST, conversationID, "");
+            this.replyMessage("REGULAR", ACLMessage.REQUEST, action.toString());
+            inWorldManager = this.blockingReceive();
+            if(inWorldManager.getPerformative() == ACLMessage.INFORM || inWorldManager.getPerformative() == ACLMessage.CONFIRM){
+                Info("Recarga realizada con éxito!");
+                charge_products.poll();
+                updateEnergy("recharge");
+            }
         }
-        return bought;
+        return bought.isEmpty();
     }
     
     /**
@@ -495,16 +515,18 @@ public abstract class MoveDrone extends BasicDrone {
                 this.initMessage(worldManager.replace("\"",""), "REGULAR", action.toString(), performative, conversationID, "");
                 //MessageTemplate template = MessageTemplate.MatchSender(new AID(worldManager));
                 in = this.blockingReceive();
-                if( in.getPerformative() == ACLMessage.CONFIRM){
-                    Info("Va a ejecutar acción: " + actionToPerform);
+                if( in.getPerformative() == ACLMessage.CONFIRM || in.getPerformative() == ACLMessage.INFORM){
+                    Info("Va a ejecutar acción: " + actionToPerform + " MENSAJE: " +in.toString());
                     replyWith = in.getReplyWith();
                     conversationID = in.getConversationId();
                     updateActualInfo(actionToPerform);
                     if(actionToPerform.equals("read")){
-                        updateSensors(new JsonObject(Json.parse(in.getContent()).asObject()));
+                        updateSensors(new JsonObject(Json.parse(in.getContent()).asObject()).get("details").asObject());
+                        Info("Sensores actualizados!");
                     }
+                    return true;
                 }else{
-                    Info("World manager no permite realizar esta acción: " +actionToPerform);
+                    Info("World manager no permite realizar esta acción: " +actionToPerform + " MENSAJE: " +in.toString());
                     status = Status.EXIT;
                     // TODO: ¿QUÉ HACER? EXIT o INFORMAR A LISTENER Y DESPUES DE "X" VECES EXIT
                 }
@@ -523,15 +545,43 @@ public abstract class MoveDrone extends BasicDrone {
                   return true;
               }
             }
+        } else {
+            calculatedHeight = getDroneHeight();
+            calculatedCompass = sensors.get("COMPASS").getValue();
         }
-        Info("No puede ejecutar la acción pedida: "+actionToPerform);
+        Info("No puede ejecutar la acción pedida: "+actionToPerform + " MENSAJE: " +in.toString());
         return false;
     }
 
     public void updateSensors(JsonObject reply) {
-        JsonObject perceptions = reply.get("perceptions").asObject();
+        JsonArray perceptions = reply.get("perceptions").asArray();
         for(Sensor sensor : sensors.values()){
-            perceptions.get(sensor.getName());
+            String name = sensor.getName().split("#")[0].split("DLX")[0].split("HQ")[0];
+            for(int i = 0; i < perceptions.size(); i++){
+                JsonObject read = perceptions.get(i).asObject();
+                if(read.get("sensor").asString().toUpperCase().contains(name)){
+                    if(name.contains("THERMAL")){
+                        ArrayList<ArrayList<Double>> valueThermal = new ArrayList<ArrayList<Double>>();
+                        ArrayList<Double> auxArray = new ArrayList<Double>();
+                        for(int row = 0; row < read.get("data").asArray().size(); row++){
+                            JsonArray data = read.get("data").asArray().get(row).asArray();
+                            for(int j = 0; j < data.size(); j++){
+                                JsonValue value = data.get(j);
+                                auxArray.add(value.asDouble());
+                            }
+                        }
+                        valueThermal.add(auxArray);
+                        sensor.setValue(valueThermal);
+                    }else{
+                        double data = read.get("data").asArray().get(0).asDouble();
+                        sensor.setValue(data);
+                    }
+                }
+            }
+        }
+        if(!firstReadDone){
+            calculatedCompass = sensors.get("COMPASS").getValue();
+            calculatedHeight = getDroneHeight();
         }
     }
 
@@ -615,10 +665,11 @@ public abstract class MoveDrone extends BasicDrone {
         int d = 0;
         double aux;
         
-        int diffHeight = (to.getHeight()+1) - this.droneHeight;
+        int diffHeight = (to.getHeight()+1) - calculatedHeight;
         
         while (diffHeight > 0) {
             actions.add("moveUP");
+            calculatedHeight += 5;
             diffHeight =- 5;
         }
         
@@ -722,6 +773,10 @@ public abstract class MoveDrone extends BasicDrone {
             // El plan es girar a la derecha d veces
             while (d != 0) {
                 actions.add("rotateR");
+                calculatedCompass += 45;
+                if(calculatedCompass > 180){
+                    calculatedCompass = -135;
+                }
                 d--; 
             }
             
@@ -733,6 +788,10 @@ public abstract class MoveDrone extends BasicDrone {
 
             while (i != 0) {
                 actions.add("rotateL");
+                calculatedCompass -= 45;
+                if(calculatedCompass < -135){
+                    calculatedCompass = 180;
+                }
                 i--;
             }
             

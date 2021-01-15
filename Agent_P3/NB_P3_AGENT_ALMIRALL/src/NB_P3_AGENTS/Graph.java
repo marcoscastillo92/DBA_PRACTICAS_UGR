@@ -5,6 +5,8 @@
  */
 package NB_P3_AGENTS;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Set;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -24,15 +26,31 @@ public class Graph<T extends Node> {
     }
     
     public T getNode(String id) {
-        return nodes.stream()
-                .filter(node -> node.getId().equals(id))
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("No node found with ID"));
+        T finded = null;
+        for(T element : nodes){
+            if(element.getId().equals(id)){
+                finded = element;
+                break;
+            }
+        }
+        return finded;
+//        return nodes.stream()
+//                .filter(node -> node.getId().equals(id))
+//                .findFirst()
+//                .orElseThrow(() -> new IllegalArgumentException("No node found with ID"));
     }
     
     public Set<T> getConnections(T node) {
-        return connections.get(node.getId()).stream()
-                .map(this::getNode)
-                .collect(Collectors.toSet());
+        String[] connectionsString = connections.get(node.getId()).toString().replace("[","").replace("]","").split(",");
+        Set<T> result = new HashSet<T>();
+        for(String id : connectionsString){
+            T neighbour = getNode(id);
+            if(neighbour != null)
+                result.add(neighbour);
+        }
+        return result;
+//        return connections.get(node.getId()).stream()
+//                .map(this::getNode)
+//                .collect(Collectors.toSet());
     }
 }

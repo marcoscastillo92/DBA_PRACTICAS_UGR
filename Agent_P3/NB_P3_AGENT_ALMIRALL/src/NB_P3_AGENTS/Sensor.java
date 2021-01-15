@@ -18,7 +18,7 @@ public class Sensor {
     private String name;
     private int price;
     private double value;
-    private ArrayList<ArrayList<Integer>> valueArray;
+    private ArrayList<ArrayList<Double>> valueArray;
     
     Sensor(String s, String n, int p) {
         this.shop = s;
@@ -58,11 +58,11 @@ public class Sensor {
         this.value = value;
     }
     
-    public ArrayList<ArrayList<Integer>> getValueArray() {
+    public ArrayList<ArrayList<Double>> getValueArray() {
         return valueArray;
     }
 
-    public void setValue(ArrayList<ArrayList<Integer>> value) {
+    public void setValue(ArrayList<ArrayList<Double>> value) {
         this.valueArray = value;
     }
 }

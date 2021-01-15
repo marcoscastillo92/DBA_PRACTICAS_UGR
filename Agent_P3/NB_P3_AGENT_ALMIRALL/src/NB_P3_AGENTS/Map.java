@@ -56,8 +56,8 @@ public class Map {
         for(int i = 0; i < height; i++){ //Y value
             for(int j = 0; j < width; j++){ //X value
                 String key = i+"-"+j;
-                mapSet.add(new Node(key, i, j, dbaMap.getLevel(j, i)));
-                String connectionsToNode = getConnectionsFromNodePosition(i,j);
+                mapSet.add(new Node(key, j, i, dbaMap.getLevel(j, i)));
+                String connectionsToNode = getConnectionsFromNodePosition(j,i);
                 connections.put(key, Stream.of(connectionsToNode).collect(Collectors.toSet()));
             }
         }

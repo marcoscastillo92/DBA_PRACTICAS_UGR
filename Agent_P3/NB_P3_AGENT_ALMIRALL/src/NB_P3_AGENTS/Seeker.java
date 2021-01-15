@@ -121,11 +121,20 @@ public class Seeker extends MoveDrone {
                         // Si la pila no esta vacia
                         if (!visitar.empty()) {
                             Node from = graphMap.getNode(this.getActualPosition()[1] + "-" + this.getActualPosition()[0]);
-                            Node to = visitar.pop();
+                            Node to = visitar.peek();
+
+                            if( from == to){
+                                visitar.pop();
+                                requestAction("read");
+                            }
                             // Puede que ya haya pasado por ese nodo cuando ha visitado otros
-                            if (!to.isVisited()) { 
+                            else if (!to.isVisited()) {
                                 // Va desde donde se encuentra al nodo del tope de la pila
-                                this.routeFinder.findRoute(from, to);
+                                route = this.routeFinder.findRoute(from, to);
+                                while(!route.isEmpty() && route.size() > 1){
+                                    moveToNode(route.get(0), route.get(1), calculatedCompass);
+                                    route.remove(0);
+                                }
                                 status = Status.ACTING;
                             }
                         }
@@ -187,12 +196,15 @@ public class Seeker extends MoveDrone {
         int[] tempPosition = new int[2];
         Node temp;
         boolean fin = false;
+        int minWidth = 0;
+        int maxWidth = map.getWidth();
 
         // Arriba derecha
         for (int i = 0; i < (int) sensorSize/2 && !fin; i++) {
             tempPosition[0] = actualPosition[0] + sensorSize - i;
             tempPosition[1] = actualPosition[1] - sensorSize + i;
-            if (tempPosition[1] > minHeight && tempPosition[1] < maxHeight) {
+            if (tempPosition[1] > minHeight+1 && tempPosition[1] < maxHeight-1 &&
+                    tempPosition[0] > minWidth+1 && tempPosition[0] < maxWidth-1) {
                 temp = graphMap.getNode(tempPosition[1] + "-" + tempPosition[0]);
                 if (!temp.isVisited() && temp.getHeight() > 0) {
                     visitar.push(temp);
@@ -207,7 +219,8 @@ public class Seeker extends MoveDrone {
         for (int i = 0; i < (int) sensorSize/2 && !fin; i++) {
             tempPosition[0] = actualPosition[0] - sensorSize + i;
             tempPosition[1] = actualPosition[1] - sensorSize + i;
-            if (tempPosition[1] > minHeight && tempPosition[1] < maxHeight) {
+            if (tempPosition[1] > minHeight+1 && tempPosition[1] < maxHeight-1 &&
+                    tempPosition[0] > minWidth+1 && tempPosition[0] < maxWidth-1) {
                 temp = graphMap.getNode(tempPosition[1] + "-" + tempPosition[0]);
                 if (!temp.isVisited() && temp.getHeight() > 0) {
                     visitar.push(temp);
@@ -222,7 +235,8 @@ public class Seeker extends MoveDrone {
         for (int i = 0; i < (int) sensorSize/2 && !fin; i++) {
             tempPosition[0] = actualPosition[0] - sensorSize + i;
             tempPosition[1] = actualPosition[1] + sensorSize - i;
-            if (tempPosition[1] > minHeight && tempPosition[1] < maxHeight) {
+            if (tempPosition[1] > minHeight+1 && tempPosition[1] < maxHeight-1 &&
+                    tempPosition[0] > minWidth+1 && tempPosition[0] < maxWidth-1) {
                 temp = graphMap.getNode(tempPosition[1] + "-" + tempPosition[0]);
                 if (!temp.isVisited() && temp.getHeight() > 0) {
                     visitar.push(temp);
@@ -237,7 +251,8 @@ public class Seeker extends MoveDrone {
         for (int i = 0; i < (int) sensorSize/2 && !fin; i++) {
             tempPosition[0] = actualPosition[0] + sensorSize - i;
             tempPosition[1] = actualPosition[1] + sensorSize - i;
-            if (tempPosition[1] > minHeight && tempPosition[1] < maxHeight) {
+            if (tempPosition[1] > minHeight+1 && tempPosition[1] < maxHeight-1 &&
+                    tempPosition[0] > minWidth+1 && tempPosition[0] < maxWidth-1) {
                 temp = graphMap.getNode(tempPosition[1] + "-" + tempPosition[0]);
                 if (!temp.isVisited() && temp.getHeight() > 0) {
                     visitar.push(temp);
@@ -252,7 +267,8 @@ public class Seeker extends MoveDrone {
         for (int i = 0; i < (int) sensorSize/2 && !fin; i++) {
             tempPosition[0] = actualPosition[0];
             tempPosition[1] = actualPosition[1] - sensorSize + i;
-            if (tempPosition[1] > minHeight && tempPosition[1] < maxHeight) {
+            if (tempPosition[1] > minHeight+1 && tempPosition[1] < maxHeight-1 &&
+                    tempPosition[0] > minWidth+1 && tempPosition[0] < maxWidth-1) {
                 temp = graphMap.getNode(tempPosition[1] + "-" + tempPosition[0]);
                 if (!temp.isVisited() && temp.getHeight() > 0) {
                     visitar.push(temp);
@@ -267,7 +283,8 @@ public class Seeker extends MoveDrone {
         for (int i = 0; i < (int) sensorSize/2 && !fin; i++) {
             tempPosition[0] = actualPosition[0] - sensorSize + i;
             tempPosition[1] = actualPosition[1];
-            if (tempPosition[1] > minHeight && tempPosition[1] < maxHeight) {
+            if (tempPosition[1] > minHeight+1 && tempPosition[1] < maxHeight-1 &&
+                    tempPosition[0] > minWidth+1 && tempPosition[0] < maxWidth-1) {
                 temp = graphMap.getNode(tempPosition[1] + "-" + tempPosition[0]);
                 if (!temp.isVisited() && temp.getHeight() > 0) {
                     visitar.push(temp);
@@ -282,7 +299,8 @@ public class Seeker extends MoveDrone {
         for (int i = 0; i < (int) sensorSize/2 && !fin; i++) {
             tempPosition[0] = actualPosition[0];
             tempPosition[1] = actualPosition[1] + sensorSize - i;
-            if (tempPosition[1] > minHeight && tempPosition[1] < maxHeight) {
+            if (tempPosition[1] > minHeight+1 && tempPosition[1] < maxHeight-1 &&
+                    tempPosition[0] > minWidth+1 && tempPosition[0] < maxWidth-1) {
                 temp = graphMap.getNode(tempPosition[1] + "-" + tempPosition[0]);
                 if (!temp.isVisited() && temp.getHeight() > 0) {
                     visitar.push(temp);
@@ -297,7 +315,8 @@ public class Seeker extends MoveDrone {
         for (int i = 0; i < (int) sensorSize/2 && !fin; i++) {
             tempPosition[0] = actualPosition[0] + sensorSize - i;
             tempPosition[1] = actualPosition[1];
-            if (tempPosition[1] > minHeight && tempPosition[1] < maxHeight) {
+            if (tempPosition[1] > minHeight+1 && tempPosition[1] < maxHeight-1 &&
+                    tempPosition[0] > minWidth+1 && tempPosition[0] < maxWidth-1) {
                 temp = graphMap.getNode(tempPosition[1] + "-" + tempPosition[0]);
                 if (!temp.isVisited() && temp.getHeight() > 0) {
                     visitar.push(temp);
@@ -334,7 +353,7 @@ public class Seeker extends MoveDrone {
         int[] actualPosition = this.getActualPosition();
         int distance = (int) sensorSize / 2;
         int auxi = 0, auxj = 0;
-        ArrayList<ArrayList<Integer>> thermal = sensors.get(thermalVersion).getValueArray();
+        ArrayList<ArrayList<Double>> thermal = sensors.get(thermalVersion).getValueArray();
         
         for (int i = actualPosition[0] - distance; i <= actualPosition[0] + distance; i++) {
             if (i >= 0 && i < map.getWidth()) {
@@ -343,8 +362,10 @@ public class Seeker extends MoveDrone {
                         if (graphMap.getNode(j + "-" + i).getHeight() > 0) {
                             graphMap.getNode(j + "-" + i).setVisited(true);
                         }
-                        if (thermal.get(auxi).get(auxj) == 0) {
-                            this.informLudwigPositionToRescuer(graphMap.getNode(j + "-" + i));
+                        if(auxi >= 0 && auxi < thermal.size() && auxj >= 0 && auxj < thermal.size()) {
+                            if (thermal.get(auxi).get(auxj) == 0) {
+                                this.informLudwigPositionToRescuer(graphMap.getNode(j + "-" + i));
+                            }
                         }
                     }
                     auxj++;
@@ -362,8 +383,9 @@ public class Seeker extends MoveDrone {
         int[] actualPosition = this.getActualPosition();
         int distance = (int) sensorSize / 2;
 
-        if((Math.abs(actualPosition[0] - lastSensorReadPosition[0]) >= distance || Math.abs(actualPosition[1] - lastSensorReadPosition[1]) >= distance) || (xLastReadThermal == 0 && yLastReadThermal == 0)){
+        if((Math.abs(actualPosition[0] - lastSensorReadPosition[0]) >= distance || Math.abs(actualPosition[1] - lastSensorReadPosition[1]) >= distance) || (xLastReadThermal == xOrigin && yLastReadThermal == yOrigin &&!firstReadDone)){
             requestAction("read");
+            firstReadDone = true;
             xLastReadThermal = actualPosition[0];
             yLastReadThermal = actualPosition[1];
         }

@@ -28,8 +28,8 @@ public abstract class BasicDrone extends IntegratedAgent {
         _exitRequested = false;
         map = new Map();
         droneNames = new HashMap<>();
-        droneNames.put("listener", "ALMIRALL_LISTENER11");
-        droneNames.put("seeker1", "ALMIRALL_SEEKER111");
+        droneNames.put("listener", "ALMIRALL_LISTENER1111");
+        droneNames.put("seeker1", "ALMIRALL_SEEKER11111");
         droneNames.put("seeker2", "ALMIRALL_SEEKER2");
         droneNames.put("seeker3", "ALMIRALL_SEEKER3");
         droneNames.put("rescuer", "ALMIRALL_RESCUER");
