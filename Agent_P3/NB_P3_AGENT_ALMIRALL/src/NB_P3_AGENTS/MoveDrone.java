@@ -282,6 +282,11 @@ public abstract class MoveDrone extends BasicDrone {
         return false;
     }
     
+    /**
+     * Método para mandar una moneda de un sensor a otro
+     * @param receiver nombre del dron que recibe la moneda
+     * @author Juan Pablo
+     */
     public void sendCoin(String receiver) {
         String coin = this.wallet.get(0);
         
@@ -301,6 +306,14 @@ public abstract class MoveDrone extends BasicDrone {
         }
     }
     
+    /**
+     * Método para comprar un sensor o recarga de una tienda
+     * @param shop tienda a la que comprar
+     * @param service referencia de sensor o recarga a comprar
+     * @param cost coste de la compra
+     * @return resultado de la compra (null si no ha podido comprar)
+     * @author Juan Pablo
+     */
     public String buy(String shop, String service, int cost) {
         JsonObject compra = new JsonObject();
         JsonArray payment = new JsonArray();
