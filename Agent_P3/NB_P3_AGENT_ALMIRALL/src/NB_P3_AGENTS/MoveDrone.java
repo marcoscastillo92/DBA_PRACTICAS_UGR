@@ -35,13 +35,16 @@ public abstract class MoveDrone extends BasicDrone {
     RouteFinder<Node> routeFinder;
     List<Node> route;
     JsonObject currentState;
+    JsonArray sensorsLogin;
     Node objectiveFounded;
     Node nextNode;
     PriorityQueue<Node> ludwigs;
     ArrayList<String> actions;
     PriorityQueue<Sensor> products;
+    PriorityQueue<Sensor> charge_products;
     ArrayList<String> tiendas;
     HashMap<String, Sensor> sensors;
+    ACLMessage inWorldManager;
     
     @Override
     public void setup(){
@@ -62,6 +65,7 @@ public abstract class MoveDrone extends BasicDrone {
         nextEnergy = -1;
         xOrigin = -1;
         yOrigin = -1;
+        sensorsLogin = new JsonArray();
     }
     
     /**
@@ -108,18 +112,16 @@ public abstract class MoveDrone extends BasicDrone {
     public boolean loginWorld() {
         if(!loggedInWorld) {
             JsonObject loginJson = new JsonObject();
-            JsonArray sensorsJson = new JsonArray();
 
-            for(Sensor sensor : sensors.values()){
-                sensorsJson.add(sensor.getName());
-            }
             loginJson.add("operation", "login");
-            loginJson.add("attach", sensorsJson);
+            loginJson.add("attach", sensorsLogin);
             loginJson.add("posx", xPosition);
             loginJson.add("posy", yPosition);
 
-            this.replyMessage("REGULAR", ACLMessage.REQUEST, loginJson.toString(), name);
-            //this.initMessage(worldManager, "REGULAR", loginJson.toString(), ACLMessage.REQUEST, conversationID, replyWith);
+            //this.replyMessage("REGULAR", ACLMessage.REQUEST, loginJson.toString(), name);
+//            conversationID = inWorldManager.getConversationId();
+//            replyWith = inWorldManager.getReplyWith();
+            this.initMessage(worldManager.replace("\"",""), "REGULAR", loginJson.toString(), ACLMessage.REQUEST, conversationID, name);
             MessageTemplate t = MessageTemplate.MatchInReplyTo(name);
             in = this.blockingReceive(t);
             if (in.getPerformative() != ACLMessage.REFUSE && in.getPerformative() != ACLMessage.FAILURE) {
@@ -185,6 +187,7 @@ public abstract class MoveDrone extends BasicDrone {
                         energy = replyObj.get("energy").asInt();
                     }
                     subscribed = true;
+                    inWorldManager = in;
                     return true;
                     //status = Status.EXIT;
                 } else {
@@ -205,12 +208,15 @@ public abstract class MoveDrone extends BasicDrone {
         JsonObject shopValues = new JsonObject();
 
         products = new PriorityQueue<>(new sensorComparator());
+        charge_products = new PriorityQueue<>(new sensorComparator());
         if(!shops.isEmpty()) {
             for (String shop : shops) {
                 this.initMessage(shop, "REGULAR", "{}", ACLMessage.QUERY_REF, conversationID, "RESCUER_BUY");
 
                 in = this.blockingReceive();
                 if (in.getPerformative() == ACLMessage.INFORM) {
+                    replyWith = in.getReplyWith();
+                    conversationID = in.getConversationId();
                     JsonObject replyObj = Json.parse(in.getContent()).asObject();
                     if (replyObj.names().contains("products")) {
 
@@ -220,7 +226,11 @@ public abstract class MoveDrone extends BasicDrone {
                             JsonObject sensorObject = value.asObject();
                             String sensorName = sensorObject.get("reference").asString();
                             int sensorPrice = sensorObject.get("price").asInt();
-                            products.add(new Sensor(shop, sensorName, sensorPrice));
+                            if(sensorName.contains("CHARGE")){
+                                charge_products.add(new Sensor(shop, sensorName, sensorPrice));
+                            }else{
+                                products.add(new Sensor(shop, sensorName, sensorPrice));
+                            }
                         }
 
                         Info("PRODUCTOS: " + products.toString());
@@ -284,7 +294,7 @@ public abstract class MoveDrone extends BasicDrone {
         }
     }
     
-    public boolean buy(String shop, String service, int cost) {
+    public String buy(String shop, String service, int cost) {
         JsonObject compra = new JsonObject();
         JsonArray payment = new JsonArray();
         
@@ -305,11 +315,13 @@ public abstract class MoveDrone extends BasicDrone {
         out.addReceiver(new AID(shop, AID.ISLOCALNAME));
         out.setPerformative(ACLMessage.REQUEST);
         out.setContent(compra.toString());
+        out.setReplyWith(replyWith);
+        out.setConversationId(conversationID);
         this.send(out);
         
         // Espera la respuesta
         in = this.blockingReceive();
-        if (in.getPerformative() == ACLMessage.FAILURE || in.getPerformative() == ACLMessage.REFUSE) {
+        if (in.getPerformative() == ACLMessage.FAILURE || in.getPerformative() == ACLMessage.REFUSE || in.getPerformative() == ACLMessage.NOT_UNDERSTOOD) {
             // Si recibimos FAILURE o REFUSE, no se ha realizado la compra
             System.out.println("Error en la compra");
             
@@ -318,31 +330,47 @@ public abstract class MoveDrone extends BasicDrone {
                 this.wallet.add(payment.get(i).asString());
             }
             
-            return false;
+            return null;
         }
         else {
+            conversationID = in.getConversationId();
+            replyWith = in.getReplyWith();
             // En otro caso, se habra realizado la compra correctamente
             System.out.println("Compra realizada");
             
-            return true;
+            return new JsonObject(Json.parse(in.getContent()).asObject()).get("reference").toString();
         }
     }
     
     public void getSensors(){
         boolean thermalbought = false;
+        ArrayList<String> boughtSensors = new ArrayList<>();
         
         for (String sensor:tiendas){
             for (Sensor s:products){
-                if(!s.getName().contains("THERMAL") || !thermalbought){
-                    if(this.buy(s.getShop(), s.getName(), s.getPrice())){
-                        if(s.getName().contains(sensor) && s.getName().contains("THERMAL")){
-                            thermalbought = true;
+                if(s.getName().contains(sensor) && !boughtSensors.contains(sensor)) {
+                    if (!s.getName().contains("THERMAL") || !thermalbought) {
+                        String reference = this.buy(s.getShop(), s.getName(), s.getPrice());
+                        if (reference != null) {
+                            if (s.getName().contains(sensor) && s.getName().contains("THERMAL")) {
+                                thermalbought = true;
+                            }
+                            sensors.put(s.getName(), s);
+                            sensorsLogin.add(reference);
+                            boughtSensors.add(sensor);
                         }
-                        sensors.put(s.getName(), s);
                     }
                 }
             }
         }
+    }
+
+    public boolean buyRecharge(){
+        Sensor charge = charge_products.peek();
+        boolean bought = buy(charge.getShop(), charge.getName(), charge.getPrice()) != null;
+        if(bought)
+            charge_products.poll();
+        return bought;
     }
     
     /**
@@ -765,6 +793,7 @@ public abstract class MoveDrone extends BasicDrone {
             case "rotateL":
             case "rotateR":
             case "rescue":
+            case "recharge":
                 canExecute = true;
                 break;
         }

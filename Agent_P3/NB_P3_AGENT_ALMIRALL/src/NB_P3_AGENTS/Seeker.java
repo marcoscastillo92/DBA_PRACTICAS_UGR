@@ -59,27 +59,29 @@ public class Seeker extends MoveDrone {
                 keepAliveSession = this.checkIn();
                 keepAliveSession &= this.subscribeByType("SEEKER");
                 //this.requestAction("Found");
-                keepAliveSession &= this.loginWorld();
+
                 if(keepAliveSession){
                     this.getProducts();
                     this.getSensors();
-                    
-                    if (this.sensors.containsKey("THERMALDLX")) {
-                        this.thermalVersion = "THERMALDLX";
-                        sensorSize = 31;
+                    keepAliveSession = this.loginWorld();
+                    if(keepAliveSession) {
+                        if (this.sensors.containsKey("THERMALDLX")) {
+                            this.thermalVersion = "THERMALDLX";
+                            sensorSize = 31;
+                        } else if (this.sensors.containsKey("THERMALHQ")) {
+                            this.thermalVersion = "THERMALHQ";
+                            sensorSize = 21;
+                        } else if (this.sensors.containsKey("THERMAL")) {
+                            this.thermalVersion = "THERMAL";
+                            sensorSize = 7;
+                        }
+
+                        this.setupCurrentState();
+                        status = Status.PLANNING;
+                    }else{
+                        _exitRequested = true;
+                        status = Status.EXIT;
                     }
-                    else if (this.sensors.containsKey("THERMALHQ")) {
-                        this.thermalVersion = "THERMALHQ";
-                        sensorSize = 21;
-                    }
-                    else if (this.sensors.containsKey("THERMAL")) {
-                        this.thermalVersion = "THERMAL";
-                        sensorSize = 7;
-                    }
-                    
-                    this.setupCurrentState();
-                    //status = Status.PLANNING;
-                    status = Status.EXIT;
                 }else{
                     _exitRequested = true;
                     status = Status.EXIT;
@@ -139,8 +141,12 @@ public class Seeker extends MoveDrone {
                     }
                     // Si no tiene energia recarga
                     else {
-                        this.land();
-                        status = Status.ACTING;
+                        if(!isLanded()) {
+                            this.land();
+                            status = Status.ACTING;
+                        }
+                        else
+                            buyRecharge();
                     }
                 }
                 else {

@@ -138,7 +138,10 @@ public class Listener extends BasicDrone {
         in = this.blockingReceive(t);
 
         if(in != null){
-            JsonObject response = new JsonObject(Json.parse(in.getContent()).asObject());
+            JsonObject response = new JsonObject();
+            if(!in.getContent().isEmpty()){
+                response = new JsonObject(Json.parse(in.getContent()).asObject());
+            }
 
             if(in.getPerformative() == ACLMessage.CANCEL){
                 this.replyMessage("ANALITYCS", ACLMessage.CONFIRM, "");
@@ -147,11 +150,15 @@ public class Listener extends BasicDrone {
                     status = Status.CANCEL_WM;
                 }
             }else if(in.getPerformative() == ACLMessage.PROPOSE){
-                if(canExecuteMove(in.getSender().getName(), response)) {
-                    this.replyMessage("INFORM", ACLMessage.CONFIRM, "");
-                    //Actualizar droneInfo
+                if(!in.getContent().isEmpty()) {
+                    if (canExecuteMove(in.getSender().getName(), response)) {
+                        this.replyMessage("INFORM", ACLMessage.CONFIRM, "");
+                        //Actualizar droneInfo
+                    } else {
+                        this.replyMessage("INFORM", ACLMessage.REJECT_PROPOSAL, "");
+                    }
                 }else{
-                    this.replyMessage("INFORM", ACLMessage.REJECT_PROPOSAL, "");
+                    Info("Mensaje con performative PROPOSE y contenido vacío: " +in.toString());
                 }
             } else {
                 Info("Error en Listener, mensaje no contemplado: " + in.toString());

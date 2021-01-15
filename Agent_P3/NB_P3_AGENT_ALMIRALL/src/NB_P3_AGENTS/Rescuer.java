@@ -50,39 +50,47 @@ public class Rescuer extends MoveDrone {
             
             case PLANNING:
                 keepAliveSession = this.listenForMessages();
-
-                if(route.isEmpty() && !ludwigs.isEmpty()){
-                    if(onTarget()){
-                        if(!isLanded()){
-                            land();
-                            status = Status.ACTING;
-                        }else{
-                            if(takeLudwig()){
-                                ludwigsCount--;
-                                Info("Quitamos un Ludwig del total");
-                                if(ludwigsCount == 0){
-                                    Info("TODOS LOS LUDWIGS ENCONTRADOS");
-                                    int[] dronePosition = getActualPosition();
-                                    route.clear();
-                                    findRoute(dronePosition[0], dronePosition[1], xOrigin, yOrigin);
-                                    if(!route.isEmpty()){
-                                        status = Status.ACTING;
-                                        Info("Vuelve a casa con los Ludwigs...");
+                if(hasEnoughtEnergy()) {
+                    if (route.isEmpty() && !ludwigs.isEmpty()) {
+                        if (onTarget()) {
+                            if (!isLanded()) {
+                                land();
+                                status = Status.ACTING;
+                            } else {
+                                if (takeLudwig()) {
+                                    ludwigsCount--;
+                                    Info("Quitamos un Ludwig del total");
+                                    if (ludwigsCount == 0) {
+                                        Info("TODOS LOS LUDWIGS ENCONTRADOS");
+                                        int[] dronePosition = getActualPosition();
+                                        route.clear();
+                                        findRoute(dronePosition[0], dronePosition[1], xOrigin, yOrigin);
+                                        if (!route.isEmpty()) {
+                                            status = Status.ACTING;
+                                            Info("Vuelve a casa con los Ludwigs...");
+                                        }
                                     }
                                 }
                             }
-                        }
-                    }else {
-                        int[] dronePosition = getActualPosition();
-                        objectiveFounded = ludwigs.peek();
-                        findRoute(dronePosition[0], dronePosition[1], objectiveFounded.getX(), objectiveFounded.getY());
-                        if (route.isEmpty()) {
-                            Info("No se ha podido encontrar una ruta al objetivo Posición Dron: " + dronePosition.toString() + " posición objetivo " + objectiveFounded.getX() + "," + objectiveFounded.getY());
-                            status = Status.EXIT;
                         } else {
-                            status = Status.ACTING;
+                            int[] dronePosition = getActualPosition();
+                            objectiveFounded = ludwigs.peek();
+                            findRoute(dronePosition[0], dronePosition[1], objectiveFounded.getX(), objectiveFounded.getY());
+                            if (route.isEmpty()) {
+                                Info("No se ha podido encontrar una ruta al objetivo Posición Dron: " + dronePosition.toString() + " posición objetivo " + objectiveFounded.getX() + "," + objectiveFounded.getY());
+                                status = Status.EXIT;
+                            } else {
+                                status = Status.ACTING;
+                            }
                         }
                     }
+                }else{
+                    if(!isLanded()) {
+                        this.land();
+                        status = Status.ACTING;
+                    }
+                    else
+                        buyRecharge();
                 }
 
                 try{
