@@ -113,6 +113,7 @@ public class Seeker extends MoveDrone {
                 if(keepAliveSession){
                     // Si tiene energia suficiente
                     if (hasEnoughtEnergy()) {
+                        readThermalSensor();
                         // Mete los nodos vecinos en la pila
                         this.floodFill();
                         this.paint();
@@ -354,5 +355,17 @@ public class Seeker extends MoveDrone {
         
         // LEER SENSOR THERMAL
         // if Thermal = 0 then informLudwigPositionToRescuer(Node position)
+    }
+
+    private void readThermalSensor() {
+        int[] lastSensorReadPosition = new int[]{xLastReadThermal, yLastReadThermal};
+        int[] actualPosition = this.getActualPosition();
+        int distance = (int) sensorSize / 2;
+
+        if(Math.abs(actualPosition[0] - lastSensorReadPosition[0]) >= distance || Math.abs(actualPosition[1] - lastSensorReadPosition[1]) >= distance){
+            requestAction("read");
+            xLastReadThermal = actualPosition[0];
+            yLastReadThermal = actualPosition[1];
+        }
     }
 }

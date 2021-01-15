@@ -29,7 +29,7 @@ public abstract class MoveDrone extends BasicDrone {
     protected Status status;
     protected ArrayList<String> wallet;
     private int xPosition, yPosition, droneHeight, energy, xNextPosition, yNextPosition, nextHeight, nextEnergy;
-    public int xOrigin, yOrigin;
+    public int xOrigin, yOrigin, xLastReadThermal, yLastReadThermal;
     List<String> shops;
     Graph<Node> graphMap;
     RouteFinder<Node> routeFinder;
@@ -67,6 +67,8 @@ public abstract class MoveDrone extends BasicDrone {
         yOrigin = -1;
         sensorsLogin = new JsonArray();
         boughtSensors = new ArrayList<>();
+        xLastReadThermal = -1;
+        yLastReadThermal = -1;
     }
     
     /**
@@ -103,6 +105,8 @@ public abstract class MoveDrone extends BasicDrone {
                 yPosition = contentObject.get("yPosition").asInt();
                 xOrigin = contentObject.get("xPosition").asInt();
                 yOrigin = contentObject.get("yPosition").asInt();
+                xLastReadThermal = xPosition;
+                yLastReadThermal = yPosition;
 
                 return true;
             }
@@ -568,7 +572,7 @@ public abstract class MoveDrone extends BasicDrone {
             case "moveD":
                 energy -= 5;
                 break;
-            case "readSensors":
+            case "read":
                 int cost = 0;
                 for(Sensor sensor : sensors.values()){
                     if(sensor.getName().matches(".*HQ")){
@@ -782,7 +786,7 @@ public abstract class MoveDrone extends BasicDrone {
                     nextEnergy = name.contains("RESCUER") ? energy - 20 : energy - 1;
                 }
                     break;
-            case "readSensors":
+            case "read":
                 int cost = 0;
                 for(Sensor sensor : sensors.values()){
                     if(sensor.getName().matches(".*HQ")){
