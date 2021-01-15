@@ -46,7 +46,7 @@ public class Seeker extends MoveDrone {
             case LISTENNING:
 
                 Info("Esperando mensaje inicial del Listener");
-                keepAliveSession = this.listenForMessages();
+                keepAliveSession = this.listenForInitMessage();
                 if(keepAliveSession) {
                     status = Status.SUBSCRIBE_WM;
                 } else {
@@ -65,13 +65,13 @@ public class Seeker extends MoveDrone {
                     this.getSensors();
                     keepAliveSession = this.loginWorld();
                     if(keepAliveSession) {
-                        if (this.sensors.containsKey("THERMALDLX")) {
+                        if (boughtSensors.contains("THERMALDLX")) {
                             this.thermalVersion = "THERMALDLX";
                             sensorSize = 31;
-                        } else if (this.sensors.containsKey("THERMALHQ")) {
+                        } else if (boughtSensors.contains("THERMALHQ")) {
                             this.thermalVersion = "THERMALHQ";
                             sensorSize = 21;
-                        } else if (this.sensors.containsKey("THERMAL")) {
+                        } else if (boughtSensors.contains("THERMAL")) {
                             this.thermalVersion = "THERMAL";
                             sensorSize = 7;
                         }
@@ -105,7 +105,7 @@ public class Seeker extends MoveDrone {
                 keepAliveSession = this.listenForMessages();
                 
                 try{
-                    Thread.sleep(10000);
+                    Thread.sleep(1000);
                 }catch (Exception e){
                     Info("Exception sleep: " + e);
                 }
@@ -153,7 +153,6 @@ public class Seeker extends MoveDrone {
                     _exitRequested = true;
                     status = Status.EXIT;
                 }
-                status = Status.EXIT;
                 break;
 
             case ACTING:

@@ -224,6 +224,6 @@ public class Rescuer extends MoveDrone {
     }
 
     public void showTrackingInfo() {
-        Info("Compass: "+sensors.get("compass")+" Angular: "+sensors.get("angular")+ " Position: "+getActualPosition().toString()+" Height: "+getDroneHeight());
+        Info("Compass: "+sensors.get("COMPASS")+" Angular: "+sensors.get("ANGULAR")+ " Position: "+getActualPosition().toString()+" Height: "+getDroneHeight());
     }
 }
