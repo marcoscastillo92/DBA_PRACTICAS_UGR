@@ -416,6 +416,9 @@ public abstract class MoveDrone extends BasicDrone {
         return droneHeight;
     }
     
+    /**
+     * @author Luis
+     */
     public void land(){
         ArrayList<String> landActions = new ArrayList<>();
         while (!this.isLanded()) {
@@ -595,6 +598,13 @@ public abstract class MoveDrone extends BasicDrone {
         return energy > 1000/2.5;
     }
     
+    /**
+     * Método que crea la lista de acciones necesarias para llegar de un nodo a otro
+     * @param from nodo inicial
+     * @param to nodo final
+     * @param compass orientación del dron
+     * @author Juan Pablo
+     */
     public void moveToNode(Node from, Node to, double compass) {
         // Cuanto se tiene que mover en el eje x y cuanto en el y
         int diffX = (int) (to.getX() - from.getX());
@@ -606,7 +616,7 @@ public abstract class MoveDrone extends BasicDrone {
         
         while (diffHeight > 0) {
             actions.add("moveUP");
-            diffHeight =- 5;
+            diffHeight -= 5;
         }
         
         // Borra los decimales que pueda tener compass

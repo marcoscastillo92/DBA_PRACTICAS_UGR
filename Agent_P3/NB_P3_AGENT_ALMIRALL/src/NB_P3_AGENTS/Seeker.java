@@ -14,6 +14,10 @@ public class Seeker extends MoveDrone {
     private int minHeight;
     private String thermalVersion;
     
+    /**
+     * Setup del Seeker
+     * @author Juan Pablo
+     */
     @Override
     public void setup(){
         super.setup();
@@ -40,6 +44,11 @@ public class Seeker extends MoveDrone {
         }
     }
     
+    /**
+     * Comportamiento del Seeker
+     * @author Juan Pablo
+     * @author Marcos Castillo
+     */
     @Override
     public void plainExecute() {
         switch(status) {
@@ -116,14 +125,21 @@ public class Seeker extends MoveDrone {
                         readThermalSensor();
                         // Mete los nodos vecinos en la pila
                         this.floodFill();
-                        this.paint();
 
                         // Si la pila no esta vacia
                         if (!visitar.empty()) {
                             Node from = graphMap.getNode(this.getActualPosition()[1] + "-" + this.getActualPosition()[0]);
-                            Node to = visitar.pop();
+                            Node to = visitar.peek();
+                            
+                            // Cada vez que llegue a un nodo meta, lee los sensores
+                            if (from == to) {
+                                visitar.pop();
+                                requestAction("read");
+                                this.paint();
+                            }
+                            
                             // Puede que ya haya pasado por ese nodo cuando ha visitado otros
-                            if (!to.isVisited()) { 
+                            else if (!to.isVisited()) { 
                                 // Va desde donde se encuentra al nodo del tope de la pila
                                 this.routeFinder.findRoute(from, to);
                                 status = Status.ACTING;
@@ -179,9 +195,10 @@ public class Seeker extends MoveDrone {
         }
     }
     
-    /*
-    Guarda en la pila los nodos adyacentes que no haya visitado
-    */
+    /**
+     * Algoritmo Flood Fill: Guarda en una pila los vecinos que están sin visitar para ir a ellos cuando salgan en la pila
+     * @author Juan Pablo
+     */
     private void floodFill() {
         int[] actualPosition = this.getActualPosition();
         int[] tempPosition = new int[2];
@@ -307,11 +324,10 @@ public class Seeker extends MoveDrone {
         }
     }
     
-    /*
-    Cuando el dron no tenga mas nodos cerca que pueda visitar, busca si queda alguno sin visitar en la zona
-    Si lo encuentra, lo inserta en la pila y devuelve true
-    Si no, devuelve false yse supone que ya ha recorrido toda su zona y su trabajo ha acabado
-    */
+    /**
+     * Método que busca otro nodo sin visitar si se agota la pila pero la zona no está completamente explorada
+     * @author Juan Pablo
+     */
     private boolean findNewNode() {
         Node temp;
         boolean continuar = false;
@@ -329,7 +345,10 @@ public class Seeker extends MoveDrone {
         return continuar;
     }
     
-    // Va completando el mapa conforme el sensor detecta las casillas
+    /**
+     * Método que va completando la zona del mapa del Seeker y busca alemanes
+     * @author Juan Pablo
+     */
     private void paint() {
         int[] actualPosition = this.getActualPosition();
         int distance = (int) sensorSize / 2;
