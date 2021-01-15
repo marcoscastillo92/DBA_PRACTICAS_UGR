@@ -210,9 +210,11 @@ public abstract class MoveDrone extends BasicDrone {
         return false;
     }
     
-    public JsonObject getProducts(){
-        JsonObject shopValues = new JsonObject();
-
+    /**
+     * Metodo para meter los productos en una cola de prioridades
+     * @author Luis Escobar Reche
+     */
+    public void getProducts(){
         products = new PriorityQueue<>(new sensorComparator());
         charge_products = new PriorityQueue<>(new sensorComparator());
         if(!shops.isEmpty()) {
@@ -251,7 +253,6 @@ public abstract class MoveDrone extends BasicDrone {
             Info("Se ha intentado consultar la tienda sin tener el id de la tienda: " + in.toString());
             status = Status.EXIT;
         }
-        return shopValues;
     }
     
     /**
@@ -346,6 +347,10 @@ public abstract class MoveDrone extends BasicDrone {
         }
     }
     
+    /**
+     * Metodo para comprar sensores
+     * @author Luis Escobar Reche
+     */
     public void getSensors(){
         boolean thermalbought = false;
 
@@ -417,7 +422,8 @@ public abstract class MoveDrone extends BasicDrone {
     }
     
     /**
-     * @author Luis
+     * Metodo para aterrizar el agente
+     * @author Luis Escobar Reche
      */
     public void land(){
         ArrayList<String> landActions = new ArrayList<>();
@@ -737,6 +743,11 @@ public abstract class MoveDrone extends BasicDrone {
         }
     }
     
+    /**
+     * Metodo para comprobar si esta en el suelo
+     * @return boolean
+     * @author Luis Escobar Reche
+     */
     public boolean isLanded(){
         boolean is = false;
         int[] position = getActualPosition();
