@@ -55,6 +55,7 @@ public class Graph<T extends Node> {
      * Get de las conexiones de un nodo
      * @param node nodo a buscar
      * @return conexiones del nodo
+     * @author Marcos Castillo
      */
     public Set<T> getConnections(T node) {
         String[] connectionsString = connections.get(node.getId()).toString().replace("[","").replace("]","").split(",");

@@ -9,7 +9,7 @@ import java.util.StringJoiner;
 
 /**
  *
- * @author Marcos
+ * @author Marcos Castillo
  */
 public class Node {
     private final String id;

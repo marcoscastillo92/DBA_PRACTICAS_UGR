@@ -9,7 +9,7 @@ import java.util.StringJoiner;
 
 /**
  *
- * @author marco
+ * @author Marcos Castillo
  * @param <T>
  */
 class RouteNode<T extends Node> implements Comparable<RouteNode> {

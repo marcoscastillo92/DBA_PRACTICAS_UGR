@@ -389,6 +389,10 @@ public class Seeker extends MoveDrone {
         // if Thermal = 0 then informLudwigPositionToRescuer(Node position)
     }
 
+    /**
+     * Fn que verifica si ha de leer o no el sensor thermal y si es así lo hace.
+     * @author Marcos Castillo
+     */
     private void readThermalSensor() {
         int[] lastSensorReadPosition = new int[]{xLastReadThermal, yLastReadThermal};
         int[] actualPosition = this.getActualPosition();

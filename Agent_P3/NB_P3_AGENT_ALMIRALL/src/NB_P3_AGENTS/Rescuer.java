@@ -130,7 +130,12 @@ public class Rescuer extends MoveDrone {
                 
         }
     }
-    
+
+    /**
+     * Metodo saber si esta en un objetivo
+     * @return boolean
+     * @author Luis Escobar Reche
+     */
     public boolean onTarget(){
         boolean on = false;
         int x = getActualPosition()[0];
@@ -201,6 +206,11 @@ public class Rescuer extends MoveDrone {
         }
     }
 
+    /**
+     * Método de escucha del Rescuer tanto interna como externa
+     * @return
+     * @author Marcos Castillo
+     */
     @Override
     public boolean listenForMessages(){
         ACLMessage aux = this.blockingReceive();
@@ -227,6 +237,10 @@ public class Rescuer extends MoveDrone {
         return false;
     }
 
+    /**
+     * Imprime info de las variables
+     * @author Marcos Castillo
+     */
     public void showTrackingInfo() {
         Info("Compass: "+sensors.get("COMPASS")+" Angular: "+sensors.get("ANGULAR")+ " Position: "+getActualPosition().toString()+" Height: "+getDroneHeight());
     }

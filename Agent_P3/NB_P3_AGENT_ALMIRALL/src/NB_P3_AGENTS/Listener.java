@@ -83,7 +83,14 @@ public class Listener extends BasicDrone {
                 break;
         }
     }
-    
+
+    /**
+     * Método para evaluar si un drone puede realizar la acción o no
+     * @param agent
+     * @param message
+     * @return
+     * @author Marcos Castillo
+     */
     private boolean canExecuteMove(String agent, JsonObject message) {
         boolean canExecute = true;
         
@@ -132,7 +139,11 @@ public class Listener extends BasicDrone {
 
         return canExecute;
     }
-    
+
+    /**
+     * Método de escucha de mensajes internos
+     * @author Marcos Castillo
+     */
     private void listenForMessages() {
         MessageTemplate t = MessageTemplate.MatchConversationId("INTERN");
         in = this.blockingReceive(t);

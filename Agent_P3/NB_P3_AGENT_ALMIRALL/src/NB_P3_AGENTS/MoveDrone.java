@@ -122,6 +122,11 @@ public abstract class MoveDrone extends BasicDrone {
         return false;
     }
 
+    /**
+     * Método para hacer login en el WM con sensores, posición y etc
+     * @author Marcos
+     * @return
+     */
     public boolean loginWorld() {
         if(!loggedInWorld) {
             JsonObject loginJson = new JsonObject();
@@ -394,6 +399,11 @@ public abstract class MoveDrone extends BasicDrone {
         }
     }
 
+    /**
+     * Método para comprar recargas y utilizarlas
+     * @author Marcos
+     * @return
+     */
     public boolean buyRecharge(){
         Sensor charge = charge_products.peek();
         String bought = buy(charge.getShop(), charge.getName(), charge.getPrice());
@@ -446,7 +456,7 @@ public abstract class MoveDrone extends BasicDrone {
     }
 
     public int[] getNextPosition() {
-        Node nextNode = route.get(0);
+        Node nextNode = this.nextNode;
         return new int[]{(int)nextNode.getX(), (int)nextNode.getY()};
     }
 
@@ -489,6 +499,11 @@ public abstract class MoveDrone extends BasicDrone {
         currentState.add("carryingLudwigs",nextPosition[0]);
     }
 
+    /**
+     * Método para actualizar un estado interno
+     * @author Marcos Castillo
+     * @deprecated
+     */
     public void updateCurrentState(){
         int[] position = getActualPosition();
         int[] nextPosition = getNextPosition();
@@ -501,6 +516,10 @@ public abstract class MoveDrone extends BasicDrone {
         currentState.set("carryingLudwigs",nextPosition[0]);
     }
 
+    /**
+     * Método para pedir exit al Listener y hacer checkout a larva, cuando todos piden exit el listener cierra sesión al WM
+     * @author Marcos Castillo
+     */
     public void exitRequestedToListener(){
         this.initMessage(droneNames.get("listener"), "ANALYTICS", "", ACLMessage.CANCEL, "INTERN", name);
         in = this.blockingReceive();
@@ -510,6 +529,12 @@ public abstract class MoveDrone extends BasicDrone {
         }
     }
 
+    /**
+     * Método para hacer una acción con permiso del Listener y ejecutar sus consecuencias
+     * @param actionToPerform
+     * @return
+     * @author Marcos Castillo
+     */
     public boolean requestAction(String actionToPerform){
         JsonObject action = new JsonObject();
         action.add("operation", actionToPerform);
@@ -575,6 +600,11 @@ public abstract class MoveDrone extends BasicDrone {
         return false;
     }
 
+    /**
+     * Método para actualizar la info de los sensores
+     * @param reply
+     * @author Marcos Castillo
+     */
     public void updateSensors(JsonObject reply) {
         JsonArray perceptions = reply.get("perceptions").asArray();
         for(Sensor sensor : sensors.values()){
@@ -607,6 +637,11 @@ public abstract class MoveDrone extends BasicDrone {
         }
     }
 
+    /**
+     * Método para notificar la posición de un Ludwig al Rescuer
+     * @param node
+     * @author Marcos Castillo
+     */
     public void informLudwigPositionToRescuer(Node node){
         JsonObject position = new JsonObject();
         position.add("xPositionLudwig", objectiveFounded.getX());
@@ -621,6 +656,11 @@ public abstract class MoveDrone extends BasicDrone {
         return this.listenInit(aux);
     }
 
+    /**
+     * Método básico de escucha interna
+     * @return
+     * @author Marcos Castillo
+     */
     public boolean listenForMessages(){
         ACLMessage aux = this.blockingReceive(1000);
         if(aux != null){
@@ -633,6 +673,14 @@ public abstract class MoveDrone extends BasicDrone {
         return true;
     }
 
+    /**
+     * Fn para calcular la distancia entre Ludwig y rescuer
+     * @param xPositionLudwig
+     * @param yPositionLudwig
+     * @param ludwigHeight
+     * @return
+     * @author Marcos Castillo
+     */
     public double calculateDistance(int xPositionLudwig, int yPositionLudwig, int ludwigHeight) {
         int[] positionRescuer = getActualPosition();
         int dX = xPositionLudwig - positionRescuer[0];
@@ -642,6 +690,11 @@ public abstract class MoveDrone extends BasicDrone {
         return (Math.sqrt(Math.pow(dX, 2)+Math.pow(dY, 2)) + dH);
     }
 
+    /**
+     * Método que actualiza la energía del drone
+     * @param action
+     * @author Marcos Castillo
+     */
     public void updateEnergy(String action){
         switch (action) {
             case "moveF":
@@ -846,6 +899,12 @@ public abstract class MoveDrone extends BasicDrone {
         return is;
     }
 
+    /**
+     * Método que decide si puede realizarse la siguiente acción
+     * @param nextAction
+     * @return
+     * @author Marcos Castillo
+     */
     public boolean canExecuteNextAction(String nextAction) {
         boolean canExecute = false;
         if(nextAction == null && !actions.isEmpty()){
@@ -915,6 +974,12 @@ public abstract class MoveDrone extends BasicDrone {
         return canExecute;
     }
 
+    /**
+     * Fn que devuelve el siguiente nodo de la acción mandada
+     * @param action
+     * @return
+     * @author Marcos Castillo
+     */
     public Node getNextNode(String action) {
         int[] dronePosition = getActualPosition();
 
@@ -965,6 +1030,11 @@ public abstract class MoveDrone extends BasicDrone {
         return null;
     }
 
+    /**
+     * Fn que indica si está en los límites del mundo
+     * @return
+     * @author Marcos Castillo
+     */
     public boolean isLookingOutOfFrontier() {
         int [] dronePosition = getActualPosition();
         int x = dronePosition[0];
@@ -1014,6 +1084,11 @@ public abstract class MoveDrone extends BasicDrone {
         return lookingAt;
     }
 
+    /**
+     * Fn que actualiza la información local de sensores y variables de seguimiento
+     * @param action
+     * @author Marcos Castillo
+     */
     public void updateActualInfo(String action){
         this.updateEnergy(action);
         switch(action){

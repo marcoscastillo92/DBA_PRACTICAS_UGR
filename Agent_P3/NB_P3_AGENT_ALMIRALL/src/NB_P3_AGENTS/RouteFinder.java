@@ -14,7 +14,7 @@ import java.util.Queue;
 
 /**
  *
- * @author marco
+ * @author Marcos Castillo
  */
 public class RouteFinder<T extends Node> {
     private final Graph<T> graph;
@@ -26,7 +26,14 @@ public class RouteFinder<T extends Node> {
         this.nextNodeScorer = nextNodeScorer;
         this.targetScorer = targetScorer;
     }
-    
+
+    /**
+     * Método que devuelve una ruta de nodo X a nodo Y
+     * @param from
+     * @param to
+     * @return
+     * @author Marcos Castillo
+     */
     public List<T> findRoute(T from, T to) {
         Queue<RouteNode> openSet = new PriorityQueue<>();
         Map<T, RouteNode<T>> allNodes = new HashMap<>();
