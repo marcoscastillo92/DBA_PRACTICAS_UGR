@@ -1,12 +1,9 @@
 package NB_P3_AGENTS;
 
-import YellowPages.YellowPages;
 import com.eclipsesource.json.*;
-import jade.core.AID;
 import jade.lang.acl.ACLMessage;
 import java.util.PriorityQueue;
 
-import java.util.PriorityQueue;
 
 public class Rescuer extends MoveDrone {
 
@@ -53,13 +50,49 @@ public class Rescuer extends MoveDrone {
             
             case PLANNING:
                 keepAliveSession = this.listenForMessages();
-                /*in = this.blockingReceive();
-                if (in.getContent().contains("COIN")) {
-                    System.out.println("Mensaje recibido");
-                    System.out.println("Guardando coin " + in.getContent());
-                    this.wallet.add(in.getContent());
+                if(hasEnoughtEnergy()) {
+                    if (route.isEmpty() && !ludwigs.isEmpty()) {
+                        if (onTarget()) {
+                            if (!isLanded()) {
+                                land();
+                                status = Status.ACTING;
+                            } else {
+                                if (takeLudwig()) {
+                                    ludwigsCount--;
+                                    Info("Quitamos un Ludwig del total");
+                                    if (ludwigsCount == 0) {
+                                        Info("TODOS LOS LUDWIGS ENCONTRADOS");
+                                        int[] dronePosition = getActualPosition();
+                                        route.clear();
+                                        findRoute(dronePosition[0], dronePosition[1], xOrigin, yOrigin);
+                                        if (!route.isEmpty()) {
+                                            status = Status.ACTING;
+                                            Info("Vuelve a casa con los Ludwigs...");
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            int[] dronePosition = getActualPosition();
+                            objectiveFounded = ludwigs.peek();
+                            findRoute(dronePosition[0], dronePosition[1], objectiveFounded.getX(), objectiveFounded.getY());
+                            if (route.isEmpty()) {
+                                Info("No se ha podido encontrar una ruta al objetivo Posición Dron: " + dronePosition.toString() + " posición objetivo " + objectiveFounded.getX() + "," + objectiveFounded.getY());
+                                status = Status.EXIT;
+                            } else {
+                                status = Status.ACTING;
+                            }
+                        }
+                    }
+                }else{
+                    if(!isLanded()) {
+                        this.land();
+                        status = Status.ACTING;
+                    }
+                    else
+                        buyRecharge();
                 }
-                */
+
                 try{
                     Thread.sleep(10000);
                 }catch (Exception e){
@@ -75,7 +108,21 @@ public class Rescuer extends MoveDrone {
                 }
                 status = Status.EXIT;
                 break;
-                
+
+            case ACTING:
+                requestAction(this.actions.get(0));
+
+                if (actions.size() > 1) {
+                    actions.remove(0);
+                }
+                else {
+                    actions.clear();
+                }
+
+                if (actions.isEmpty()) {
+                    status = Status.PLANNING;
+                }
+                break;
             case EXIT:
                 Info("Se cierra el agente");
                 this.exitRequestedToListener();
@@ -97,8 +144,8 @@ public class Rescuer extends MoveDrone {
         return on;
     }
     
-    // Se ejecuta solo si esta encima de el
-    public boolean takeLudwig(int targetHeight){
+    // Se ejecuta solo si esta encima de un ludwig
+    public boolean takeLudwig(){
         JsonObject rescate = new JsonObject();
         
         if(this.isLanded()){
@@ -153,7 +200,7 @@ public class Rescuer extends MoveDrone {
     @Override
     public boolean listenForMessages(){
         ACLMessage aux = this.blockingReceive();
-        if(name.equals(droneNames.get("rescuer")) && aux.getPerformative() == ACLMessage.INFORM_REF){
+        if(aux.getPerformative() == ACLMessage.INFORM_REF){
             JsonObject response = new JsonObject(Json.parse(in.getContent()).asObject());
             //Ludwig founded
             int xPositionLudwig = response.get("xPositionLudwig").asInt();
@@ -166,11 +213,17 @@ public class Rescuer extends MoveDrone {
 
             updateDistanceToLudwigsInQueue();
             return true;
+        }else if(in.getPerformative() == ACLMessage.INFORM) {
+            if (in.getContent().contains("COIN")) {
+                System.out.println("Mensaje recibido");
+                System.out.println("Guardando coin " + in.getContent());
+                this.wallet.add(in.getContent());
+            }
         }
         return false;
     }
 
     public void showTrackingInfo() {
-        Info("Compass: "+sensors.get("compass")+" Angular: "+sensors.get("angular")+ " Position: "+getActualPosition().toString()+" Height: "+getDroneHeight());
+        Info("Compass: "+sensors.get("COMPASS")+" Angular: "+sensors.get("ANGULAR")+ " Position: "+getActualPosition().toString()+" Height: "+getDroneHeight());
     }
 }

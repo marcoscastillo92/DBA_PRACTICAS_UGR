@@ -17,6 +17,7 @@ public abstract class BasicDrone extends IntegratedAgent {
     Map map;
     String name;
     Boolean subscribed, loggedInWorld, checkedInLarva, keepAliveSession;
+    int ludwigsCount = 10;
     
     @Override
     public void setup(){

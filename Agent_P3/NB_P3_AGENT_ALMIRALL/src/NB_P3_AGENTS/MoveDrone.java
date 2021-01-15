@@ -28,19 +28,23 @@ class sensorComparator implements Comparator<Sensor> {
 public abstract class MoveDrone extends BasicDrone {
     protected Status status;
     protected ArrayList<String> wallet;
-    private int xPosition, yPosition, droneHeight, energy;
+    private int xPosition, yPosition, droneHeight, energy, xNextPosition, yNextPosition, nextHeight, nextEnergy;
+    public int xOrigin, yOrigin, xLastReadThermal, yLastReadThermal;
     List<String> shops;
     Graph<Node> graphMap;
     RouteFinder<Node> routeFinder;
     List<Node> route;
     JsonObject currentState;
+    JsonArray sensorsLogin;
     Node objectiveFounded;
     Node nextNode;
     PriorityQueue<Node> ludwigs;
-    ArrayList<String> actions;
+    ArrayList<String> actions, boughtSensors;
     PriorityQueue<Sensor> products;
+    PriorityQueue<Sensor> charge_products;
     ArrayList<String> tiendas;
     HashMap<String, Sensor> sensors;
+    ACLMessage inWorldManager;
     
     @Override
     public void setup(){
@@ -55,6 +59,16 @@ public abstract class MoveDrone extends BasicDrone {
         objectiveFounded = new Node("11-1", 1, 11, 239); //PARA MOCKUP se ha de hacer bien cuando se encuentre un Ludwig
         tiendas = new ArrayList<>();
         sensors = new HashMap<String, Sensor>();
+        xNextPosition = -1;
+        yNextPosition = -1;
+        nextHeight = -1;
+        nextEnergy = -1;
+        xOrigin = -1;
+        yOrigin = -1;
+        sensorsLogin = new JsonArray();
+        boughtSensors = new ArrayList<>();
+        xLastReadThermal = -1;
+        yLastReadThermal = -1;
     }
     
     /**
@@ -89,6 +103,10 @@ public abstract class MoveDrone extends BasicDrone {
 
                 xPosition = contentObject.get("xPosition").asInt();
                 yPosition = contentObject.get("yPosition").asInt();
+                xOrigin = contentObject.get("xPosition").asInt();
+                yOrigin = contentObject.get("yPosition").asInt();
+                xLastReadThermal = xPosition;
+                yLastReadThermal = yPosition;
 
                 return true;
             }
@@ -99,20 +117,19 @@ public abstract class MoveDrone extends BasicDrone {
     public boolean loginWorld() {
         if(!loggedInWorld) {
             JsonObject loginJson = new JsonObject();
-            JsonArray sensorsJson = new JsonArray();
 
-            for(Sensor sensor : sensors.values()){
-                sensorsJson.add(sensor.getName());
-            }
             loginJson.add("operation", "login");
-            loginJson.add("attach", sensorsJson);
+            loginJson.add("attach", sensorsLogin);
             loginJson.add("posx", xPosition);
             loginJson.add("posy", yPosition);
 
-            this.replyMessage("REGULAR", ACLMessage.REQUEST, loginJson.toString(), name);
-            //this.initMessage(worldManager, "REGULAR", loginJson.toString(), ACLMessage.REQUEST, conversationID, replyWith);
+            in = inWorldManager;
+            this.replyMessage("REGULAR", ACLMessage.REQUEST, loginJson.toString().replace("\\\"",""), name);
+//            conversationID = inWorldManager.getConversationId();
+//            replyWith = inWorldManager.getReplyWith();
+            //this.initMessage(worldManager.replace("\"",""), "REGULAR", loginJson.toString(), ACLMessage.REQUEST, conversationID, name);
             MessageTemplate t = MessageTemplate.MatchInReplyTo(name);
-            in = this.blockingReceive(t);
+            in = this.blockingReceive();
             if (in.getPerformative() != ACLMessage.REFUSE && in.getPerformative() != ACLMessage.FAILURE) {
                 Info("Login en mundo correcto, iniciado en la posición [" + xPosition + ", " + yPosition + "]");
                 loggedInWorld = true;
@@ -176,6 +193,7 @@ public abstract class MoveDrone extends BasicDrone {
                         energy = replyObj.get("energy").asInt();
                     }
                     subscribed = true;
+                    inWorldManager = in;
                     return true;
                     //status = Status.EXIT;
                 } else {
@@ -196,12 +214,15 @@ public abstract class MoveDrone extends BasicDrone {
         JsonObject shopValues = new JsonObject();
 
         products = new PriorityQueue<>(new sensorComparator());
+        charge_products = new PriorityQueue<>(new sensorComparator());
         if(!shops.isEmpty()) {
             for (String shop : shops) {
                 this.initMessage(shop, "REGULAR", "{}", ACLMessage.QUERY_REF, conversationID, "RESCUER_BUY");
 
                 in = this.blockingReceive();
                 if (in.getPerformative() == ACLMessage.INFORM) {
+                    replyWith = in.getReplyWith();
+                    conversationID = in.getConversationId();
                     JsonObject replyObj = Json.parse(in.getContent()).asObject();
                     if (replyObj.names().contains("products")) {
 
@@ -211,7 +232,11 @@ public abstract class MoveDrone extends BasicDrone {
                             JsonObject sensorObject = value.asObject();
                             String sensorName = sensorObject.get("reference").asString();
                             int sensorPrice = sensorObject.get("price").asInt();
-                            products.add(new Sensor(shop, sensorName, sensorPrice));
+                            if(sensorName.contains("CHARGE")){
+                                charge_products.add(new Sensor(shop, sensorName, sensorPrice));
+                            }else{
+                                products.add(new Sensor(shop, sensorName, sensorPrice));
+                            }
                         }
 
                         Info("PRODUCTOS: " + products.toString());
@@ -275,7 +300,7 @@ public abstract class MoveDrone extends BasicDrone {
         }
     }
     
-    public boolean buy(String shop, String service, int cost) {
+    public String buy(String shop, String service, int cost) {
         JsonObject compra = new JsonObject();
         JsonArray payment = new JsonArray();
         
@@ -296,11 +321,13 @@ public abstract class MoveDrone extends BasicDrone {
         out.addReceiver(new AID(shop, AID.ISLOCALNAME));
         out.setPerformative(ACLMessage.REQUEST);
         out.setContent(compra.toString());
+        out.setReplyWith(replyWith);
+        out.setConversationId(conversationID);
         this.send(out);
         
         // Espera la respuesta
-        in = this.blockingReceive();
-        if (in.getPerformative() == ACLMessage.FAILURE || in.getPerformative() == ACLMessage.REFUSE) {
+        ACLMessage aux = this.blockingReceive();
+        if (aux.getPerformative() == ACLMessage.FAILURE || aux.getPerformative() == ACLMessage.REFUSE || aux.getPerformative() == ACLMessage.NOT_UNDERSTOOD) {
             // Si recibimos FAILURE o REFUSE, no se ha realizado la compra
             System.out.println("Error en la compra");
             
@@ -309,31 +336,46 @@ public abstract class MoveDrone extends BasicDrone {
                 this.wallet.add(payment.get(i).asString());
             }
             
-            return false;
+            return null;
         }
         else {
             // En otro caso, se habra realizado la compra correctamente
             System.out.println("Compra realizada");
             
-            return true;
+            return new JsonObject(Json.parse(aux.getContent()).asObject()).get("reference").toString();
         }
     }
     
     public void getSensors(){
         boolean thermalbought = false;
-        
+
         for (String sensor:tiendas){
             for (Sensor s:products){
-                if(!s.getName().contains("THERMAL") || !thermalbought){
-                    if(this.buy(s.getShop(), s.getName(), s.getPrice())){
-                        if(s.getName().contains(sensor) && s.getName().contains("THERMAL")){
-                            thermalbought = true;
+                if(s.getName().contains(sensor) && !boughtSensors.contains(sensor)) {
+                    if (!s.getName().contains("THERMAL") || !thermalbought) {
+                        String reference = this.buy(s.getShop(), s.getName(), s.getPrice());
+                        if (reference != null) {
+                            if (s.getName().contains(sensor) && s.getName().contains("THERMAL")) {
+                                thermalbought = true;
+                            }
+                            sensors.put(sensor, s);
+                            sensorsLogin.add(reference);
+                            boughtSensors.add(sensor);
                         }
-                        sensors.put(s.getName(), s);
                     }
                 }
             }
         }
+    }
+
+    public boolean buyRecharge(){
+        Sensor charge = charge_products.peek();
+        boolean bought = buy(charge.getShop(), charge.getName(), charge.getPrice()) != null;
+        if(bought) {
+            charge_products.poll();
+            updateEnergy("recharge");
+        }
+        return bought;
     }
     
     /**
@@ -375,8 +417,6 @@ public abstract class MoveDrone extends BasicDrone {
     }
     
     public void land(){
-        int altura = this.getDroneHeight();
-        
         ArrayList<String> landActions = new ArrayList<>();
         while (!this.isLanded()) {
             if (this.canExecuteNextAction("touchD")) {
@@ -432,39 +472,53 @@ public abstract class MoveDrone extends BasicDrone {
         JsonObject action = new JsonObject();
         action.add("operation", actionToPerform);
 
-        this.initMessage(droneNames.get("listener"), "REGULAR", action.toString(), ACLMessage.PROPOSE, "INTERN", name);
+        boolean canExecute = canExecuteNextAction(action.get("operation").toString());
 
-        MessageTemplate t = MessageTemplate.MatchSender(new AID(droneNames.get("listener")));
-        in = this.blockingReceive(t);
+        if(canExecute){
+            JsonObject message = new JsonObject();
+            message.add("operation", actionToPerform);
+            message.add("xPosition", xNextPosition);
+            message.add("yPosition", yNextPosition);
+            message.add("droneHeight", nextHeight);
+            message.add("energy", nextEnergy);
 
-        if(in.getPerformative() == ACLMessage.CONFIRM){
-            //TODO Send action to WorldManager if it's executable action
-            this.initMessage(worldManager, "REGULAR", action.toString(), ACLMessage.REQUEST, conversationID, "");
-            MessageTemplate template = MessageTemplate.MatchSender(new AID(worldManager));
-            in = this.blockingReceive(template);
-            if( in.getPerformative() == ACLMessage.CONFIRM){
-                Info("Va a ejecutar acción: " + actionToPerform);
-                replyWith = in.getReplyWith();
-                conversationID = in.getConversationId();
-            }else{
-                Info("World manager no permite realizar esta acción: " +actionToPerform);
-                // TODO: ¿QUÉ HACER? EXIT o INFORMAR A LISTENER Y DESPUES DE "X" VECES EXIT
-            }
-        } else {
-            //Si es acción ejecutable que no sea recargar sleep y devolvemos falso para volver a intentarlo más tarde
-          if(!actionToPerform.equals("recharge")){
-              try{
-                  Thread.sleep(2000);
-              }catch(Exception e){
-                  Info("Excepción al dormir en acción: " + e);
+            this.initMessage(droneNames.get("listener"), "REGULAR", action.toString(), ACLMessage.PROPOSE, "INTERN", name);
+
+            MessageTemplate t = MessageTemplate.MatchSender(new AID(droneNames.get("listener")));
+            in = this.blockingReceive(t);
+
+            if(in.getPerformative() == ACLMessage.CONFIRM){
+                //TODO Send action to WorldManager if it's executable action
+                this.initMessage(worldManager, "REGULAR", action.toString(), ACLMessage.REQUEST, conversationID, "");
+                MessageTemplate template = MessageTemplate.MatchSender(new AID(worldManager));
+                in = this.blockingReceive(template);
+                if( in.getPerformative() == ACLMessage.CONFIRM){
+                    Info("Va a ejecutar acción: " + actionToPerform);
+                    replyWith = in.getReplyWith();
+                    conversationID = in.getConversationId();
+                    updateActualInfo(actionToPerform);
+                }else{
+                    Info("World manager no permite realizar esta acción: " +actionToPerform);
+                    status = Status.EXIT;
+                    // TODO: ¿QUÉ HACER? EXIT o INFORMAR A LISTENER Y DESPUES DE "X" VECES EXIT
+                }
+            } else {
+                //Si es acción ejecutable que no sea recargar sleep y devolvemos falso para volver a intentarlo más tarde
+              if(!actionToPerform.equals("recharge")){
+                  try{
+                      Thread.sleep(2000);
+                  }catch(Exception e){
+                      Info("Excepción al dormir en acción: " + e);
+                  }
+
+              }else{
+                  //Mandamos coins al rescuer
+                  sendCoin(droneNames.get("rescuer"));
+                  return true;
               }
-
-          }else{
-              //Mandamos coins al rescuer
-              sendCoin(droneNames.get("rescuer"));
-              return true;
-          }
+            }
         }
+        Info("No puede ejecutar la acción pedida: "+actionToPerform);
         return false;
     }
 
@@ -477,15 +531,18 @@ public abstract class MoveDrone extends BasicDrone {
         this.initMessage(droneNames.get("rescuer"), "INFORM", position.toString(), ACLMessage.INFORM, "INTERN", name);
     }
 
-    public boolean listenForMessages(){
+    public boolean listenForInitMessage(){
         ACLMessage aux = this.blockingReceive();
+        return this.listenInit(aux);
+    }
+
+    public boolean listenForMessages(){
+        ACLMessage aux = this.blockingReceive(1000);
         if(aux != null){
             Info("Mensaje interno recibido: " + aux.toString());
             if(aux.getPerformative() == ACLMessage.CANCEL && aux.getConversationId().equals("INTERN")){
                 //this.initMessage(droneNames.get("listener"), "ANALYTICS", "", ACLMessage.CONFIRM, "INTERN", "INTERN");
                 return false;
-            } else {
-                return this.listenInit(aux);
             }
         }
         return true;
@@ -515,7 +572,7 @@ public abstract class MoveDrone extends BasicDrone {
             case "moveD":
                 energy -= 5;
                 break;
-            case "readSensors":
+            case "read":
                 int cost = 0;
                 for(Sensor sensor : sensors.values()){
                     if(sensor.getName().matches(".*HQ")){
@@ -535,12 +592,11 @@ public abstract class MoveDrone extends BasicDrone {
     }
 
     public boolean hasEnoughtEnergy(){
-        return energy < 1000/2.5;
+        return energy > 1000/2.5;
     }
     
     public void moveToNode(Node from, Node to, double compass) {
         // Cuanto se tiene que mover en el eje x y cuanto en el y
-        nextNode = to;
         int diffX = (int) (to.getX() - from.getX());
         int diffY = (int) (to.getY() - from.getY());
         int d = 0;
@@ -692,33 +748,60 @@ public abstract class MoveDrone extends BasicDrone {
         int z = getDroneHeight();
         int [] dronePosition = getActualPosition();
         Node actualNode = graphMap.getNode(dronePosition[1]+"-"+dronePosition[0]);
-        Node nextNode = getNextNode("actiooooooon");
 
         switch(nextAction) {
             case "moveF":
                 //Si no estoy mirando a la forntera y el siguiente nodo tiene altura menor o igual
                 if(!this.isLookingOutOfFrontier()){
+                    Node nextNode = getNextNode(nextAction);
                     //puedo ejecutar accion si mi altura es mayor o igual que la altura de la siguiente casilla
-                    canExecute = z >= nextNode.getHeight();
+                    if(nextNode != null){
+                        canExecute = z >= nextNode.getHeight();
+                        if(canExecute){
+                            nextEnergy = name.contains("RESCUER") ? energy - 4 : energy - 1;
+                        }
+                    }else{
+                        Info("Next node en canExecuteNextAction es nulo, acción: " + nextAction + " POSICIÓN: " + dronePosition.toString());
+                    }
                 }
                 break;
             case "touchD":
                 if((z - actualNode.getHeight()) <= 5){
                     canExecute = true;
+                    nextHeight = actualNode.getHeight();
+                    nextEnergy = name.contains("RESCUER") ? energy - ((getDroneHeight() - actualNode.getHeight())*4) : energy - (getDroneHeight() - actualNode.getHeight());
                 }
                 break;
             case "moveUP":
                 if(z < actualNode.MAX_HEIGHT ){
                     canExecute = true;
+                    nextHeight = getDroneHeight() + 5;
+                    nextEnergy = name.contains("RESCUER") ? energy - 20 : energy - 1;
                 }
                 break;
             case "moveD":
-                if((z - actualNode.getHeight()) >= 5)
+                if((z - actualNode.getHeight()) >= 5){
+                    canExecute = true;
+                    nextHeight = getDroneHeight() - 5;
+                    nextEnergy = name.contains("RESCUER") ? energy - 20 : energy - 1;
+                }
                     break;
+            case "read":
+                int cost = 0;
+                for(Sensor sensor : sensors.values()){
+                    if(sensor.getName().matches(".*HQ")){
+                        cost += 4;
+                    }else if(sensor.getName().matches(".*DLX")){
+                        cost += 8;
+                    }else{
+                        cost++;
+                    }
+                }
+                nextEnergy = energy - cost;
             case "rotateL":
             case "rotateR":
-            case "readSensors":
             case "rescue":
+            case "recharge":
                 canExecute = true;
                 break;
         }
@@ -727,7 +810,53 @@ public abstract class MoveDrone extends BasicDrone {
     }
 
     public Node getNextNode(String action) {
-        return nextNode;
+        int[] dronePosition = getActualPosition();
+
+        if(action.equals("moveF")){
+            double compass = sensors.get("COMPASS").getValue();
+            if (compass % 45 != 0) {
+                double aux = compass / 45;
+                aux = Math.round(aux);
+                compass = aux * 45;
+            }
+            switch((int)compass){
+                case 0:
+                    xNextPosition = dronePosition[0];
+                    yNextPosition = dronePosition[1]-1;
+                    break;
+                case 45:
+                    xNextPosition = dronePosition[0]+1;
+                    yNextPosition = dronePosition[1]-1;
+                    break;
+                case 90:
+                    xNextPosition = dronePosition[0]+1;
+                    yNextPosition = dronePosition[1];
+                    break;
+                case 135:
+                    xNextPosition = dronePosition[0]+1;
+                    yNextPosition = dronePosition[1]+1;
+                    break;
+                case 180:
+                    xNextPosition = dronePosition[0];
+                    yNextPosition = dronePosition[1]+1;
+                    break;
+                case -45:
+                    xNextPosition = dronePosition[0]-1;
+                    yNextPosition = dronePosition[1]-1;
+                    break;
+                case -90:
+                    xNextPosition = dronePosition[0]-1;
+                    yNextPosition = dronePosition[1];
+                    break;
+                case -135:
+                    xNextPosition = dronePosition[0]-1;
+                    yNextPosition = dronePosition[1]+1;
+                    break;
+            }
+            nextNode = graphMap.getNode(yNextPosition+"-"+xNextPosition);
+            return nextNode;
+        }
+        return null;
     }
 
     public boolean isLookingOutOfFrontier() {
@@ -750,7 +879,7 @@ public abstract class MoveDrone extends BasicDrone {
      */
     public String whereIsLooking(){
         String lookingAt = "";
-        switch((int)sensors.get("compass").getValue()){
+        switch((int)sensors.get("COMPASS").getValue()){
             case 0:
                 lookingAt = "N";
                 break;
@@ -788,17 +917,17 @@ public abstract class MoveDrone extends BasicDrone {
                 yPosition = nextNode.getY();
                 break;
             case "rotateL":
-                if(sensors.get("compass").getValue() <= -135){
-                    sensors.get("compass").setValue(180);
+                if(sensors.get("COMPASS").getValue() <= -135){
+                    sensors.get("COMPASS").setValue(180);
                 }else{
-                    sensors.get("compass").setValue(-45);
+                    sensors.get("COMPASS").setValue(-45);
                 }
                 break;
             case "rotateR":
-                if(sensors.get("compass").getValue() >= 185){
-                    sensors.get("compass").setValue(-135);
+                if(sensors.get("COMPASS").getValue() >= 185){
+                    sensors.get("COMPASS").setValue(-135);
                 }else{
-                    sensors.get("compass").setValue(45);
+                    sensors.get("COMPASS").setValue(45);
                 }
                 break;
             case "touchD":

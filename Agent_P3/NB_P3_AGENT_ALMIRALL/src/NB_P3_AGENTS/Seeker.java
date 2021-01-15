@@ -46,7 +46,7 @@ public class Seeker extends MoveDrone {
             case LISTENNING:
 
                 Info("Esperando mensaje inicial del Listener");
-                keepAliveSession = this.listenForMessages();
+                keepAliveSession = this.listenForInitMessage();
                 if(keepAliveSession) {
                     status = Status.SUBSCRIBE_WM;
                 } else {
@@ -59,27 +59,29 @@ public class Seeker extends MoveDrone {
                 keepAliveSession = this.checkIn();
                 keepAliveSession &= this.subscribeByType("SEEKER");
                 //this.requestAction("Found");
-                keepAliveSession &= this.loginWorld();
+
                 if(keepAliveSession){
                     this.getProducts();
                     this.getSensors();
-                    
-                    if (this.sensors.containsKey("THERMALDLX")) {
-                        this.thermalVersion = "THERMALDLX";
-                        sensorSize = 31;
+                    keepAliveSession = this.loginWorld();
+                    if(keepAliveSession) {
+                        if (boughtSensors.contains("THERMALDLX")) {
+                            this.thermalVersion = "THERMALDLX";
+                            sensorSize = 31;
+                        } else if (boughtSensors.contains("THERMALHQ")) {
+                            this.thermalVersion = "THERMALHQ";
+                            sensorSize = 21;
+                        } else if (boughtSensors.contains("THERMAL")) {
+                            this.thermalVersion = "THERMAL";
+                            sensorSize = 7;
+                        }
+
+                        this.setupCurrentState();
+                        status = Status.PLANNING;
+                    }else{
+                        _exitRequested = true;
+                        status = Status.EXIT;
                     }
-                    else if (this.sensors.containsKey("THERMALHQ")) {
-                        this.thermalVersion = "THERMALHQ";
-                        sensorSize = 21;
-                    }
-                    else if (this.sensors.containsKey("THERMAL")) {
-                        this.thermalVersion = "THERMAL";
-                        sensorSize = 7;
-                    }
-                    
-                    this.setupCurrentState();
-                    //status = Status.PLANNING;
-                    status = Status.EXIT;
                 }else{
                     _exitRequested = true;
                     status = Status.EXIT;
@@ -103,7 +105,7 @@ public class Seeker extends MoveDrone {
                 keepAliveSession = this.listenForMessages();
                 
                 try{
-                    Thread.sleep(10000);
+                    Thread.sleep(1000);
                 }catch (Exception e){
                     Info("Exception sleep: " + e);
                 }
@@ -111,8 +113,10 @@ public class Seeker extends MoveDrone {
                 if(keepAliveSession){
                     // Si tiene energia suficiente
                     if (hasEnoughtEnergy()) {
+                        readThermalSensor();
                         // Mete los nodos vecinos en la pila
                         this.floodFill();
+                        this.paint();
 
                         // Si la pila no esta vacia
                         if (!visitar.empty()) {
@@ -138,15 +142,18 @@ public class Seeker extends MoveDrone {
                     }
                     // Si no tiene energia recarga
                     else {
-                        this.land();
-                        status = Status.ACTING;
+                        if(!isLanded()) {
+                            this.land();
+                            status = Status.ACTING;
+                        }
+                        else
+                            buyRecharge();
                     }
                 }
                 else {
                     _exitRequested = true;
                     status = Status.EXIT;
                 }
-                status = Status.EXIT;
                 break;
 
             case ACTING:
@@ -348,5 +355,17 @@ public class Seeker extends MoveDrone {
         
         // LEER SENSOR THERMAL
         // if Thermal = 0 then informLudwigPositionToRescuer(Node position)
+    }
+
+    private void readThermalSensor() {
+        int[] lastSensorReadPosition = new int[]{xLastReadThermal, yLastReadThermal};
+        int[] actualPosition = this.getActualPosition();
+        int distance = (int) sensorSize / 2;
+
+        if(Math.abs(actualPosition[0] - lastSensorReadPosition[0]) >= distance || Math.abs(actualPosition[1] - lastSensorReadPosition[1]) >= distance){
+            requestAction("read");
+            xLastReadThermal = actualPosition[0];
+            yLastReadThermal = actualPosition[1];
+        }
     }
 }
