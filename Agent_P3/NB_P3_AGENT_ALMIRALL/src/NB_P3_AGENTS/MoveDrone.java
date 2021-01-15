@@ -471,8 +471,9 @@ public abstract class MoveDrone extends BasicDrone {
     public boolean requestAction(String actionToPerform){
         JsonObject action = new JsonObject();
         action.add("operation", actionToPerform);
+        int performative = ACLMessage.REQUEST;
 
-        boolean canExecute = canExecuteNextAction(action.get("operation").toString());
+        boolean canExecute = canExecuteNextAction(actionToPerform);
 
         if(canExecute){
             JsonObject message = new JsonObject();
@@ -484,19 +485,24 @@ public abstract class MoveDrone extends BasicDrone {
 
             this.initMessage(droneNames.get("listener"), "REGULAR", action.toString(), ACLMessage.PROPOSE, "INTERN", name);
 
-            MessageTemplate t = MessageTemplate.MatchSender(new AID(droneNames.get("listener")));
-            in = this.blockingReceive(t);
+            //MessageTemplate t = MessageTemplate.MatchConversationId("INTERN");
+            in = this.blockingReceive();
 
             if(in.getPerformative() == ACLMessage.CONFIRM){
                 //TODO Send action to WorldManager if it's executable action
-                this.initMessage(worldManager, "REGULAR", action.toString(), ACLMessage.REQUEST, conversationID, "");
-                MessageTemplate template = MessageTemplate.MatchSender(new AID(worldManager));
-                in = this.blockingReceive(template);
+                if(actionToPerform.equals("read"))
+                    performative = ACLMessage.QUERY_REF;
+                this.initMessage(worldManager.replace("\"",""), "REGULAR", action.toString(), performative, conversationID, "");
+                //MessageTemplate template = MessageTemplate.MatchSender(new AID(worldManager));
+                in = this.blockingReceive();
                 if( in.getPerformative() == ACLMessage.CONFIRM){
                     Info("Va a ejecutar acción: " + actionToPerform);
                     replyWith = in.getReplyWith();
                     conversationID = in.getConversationId();
                     updateActualInfo(actionToPerform);
+                    if(actionToPerform.equals("read")){
+                        updateSensors(new JsonObject(Json.parse(in.getContent()).asObject()));
+                    }
                 }else{
                     Info("World manager no permite realizar esta acción: " +actionToPerform);
                     status = Status.EXIT;
@@ -520,6 +526,13 @@ public abstract class MoveDrone extends BasicDrone {
         }
         Info("No puede ejecutar la acción pedida: "+actionToPerform);
         return false;
+    }
+
+    public void updateSensors(JsonObject reply) {
+        JsonObject perceptions = reply.get("perceptions").asObject();
+        for(Sensor sensor : sensors.values()){
+            perceptions.get(sensor.getName());
+        }
     }
 
     public void informLudwigPositionToRescuer(Node node){

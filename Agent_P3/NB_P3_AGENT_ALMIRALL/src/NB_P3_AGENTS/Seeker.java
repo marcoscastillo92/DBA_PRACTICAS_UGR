@@ -362,7 +362,7 @@ public class Seeker extends MoveDrone {
         int[] actualPosition = this.getActualPosition();
         int distance = (int) sensorSize / 2;
 
-        if(Math.abs(actualPosition[0] - lastSensorReadPosition[0]) >= distance || Math.abs(actualPosition[1] - lastSensorReadPosition[1]) >= distance){
+        if((Math.abs(actualPosition[0] - lastSensorReadPosition[0]) >= distance || Math.abs(actualPosition[1] - lastSensorReadPosition[1]) >= distance) || (xLastReadThermal == 0 && yLastReadThermal == 0)){
             requestAction("read");
             xLastReadThermal = actualPosition[0];
             yLastReadThermal = actualPosition[1];

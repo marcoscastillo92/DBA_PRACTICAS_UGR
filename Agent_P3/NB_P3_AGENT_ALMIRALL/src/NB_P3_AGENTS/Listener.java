@@ -32,9 +32,9 @@ public class Listener extends BasicDrone {
         name = droneNames.get("listener");
         drones = new HashMap<String, DroneInfo>();
         drones.put("seeker1", new DroneInfo(droneNames.get("seeker1")));
-        drones.put("seeker2", new DroneInfo(droneNames.get("seeker2")));
-        drones.put("seeker3", new DroneInfo(droneNames.get("seeker3")));
-        drones.put("rescuer", new DroneInfo(droneNames.get("rescuer")));
+//        drones.put("seeker2", new DroneInfo(droneNames.get("seeker2")));
+//        drones.put("seeker3", new DroneInfo(droneNames.get("seeker3")));
+//        drones.put("rescuer", new DroneInfo(droneNames.get("rescuer")));
         ludwigs = new PriorityQueue<Node>(new LudwigComparator());
         subscribed = false;
         loggedInWorld = false;
@@ -395,12 +395,12 @@ public class Listener extends BasicDrone {
         System.out.println("REPLYWITH " + replyWith);
         contentMessage.add("Shops", shops.toString());
 
-        setDronePosition("ALMIRALL_SEEKER1", 1, 1);
-        setDronePosition("ALMIRALL_SEEKER2", 3, 3);
-        setDronePosition("ALMIRALL_SEEKER3", 6, 6);
-        setDronePosition("ALMIRALL_RESCUER", 10, 10);
+        setDronePosition("ALMIRALL_SEEKER111", 4, 4);
+//        setDronePosition("ALMIRALL_SEEKER2", 3, 3);
+//        setDronePosition("ALMIRALL_SEEKER3", 6, 6);
+//        setDronePosition("ALMIRALL_RESCUER", 10, 10);
 
-        this.initMessage("ALMIRALL_AWACS", "REGULAR", "", ACLMessage.QUERY_IF, conversationID, replyWith);
+        this.initMessage("ALMIRALL_AWACS11", "REGULAR", "", ACLMessage.QUERY_IF, conversationID, replyWith);
 
         for(DroneInfo drone : drones.values()) {
             try{
