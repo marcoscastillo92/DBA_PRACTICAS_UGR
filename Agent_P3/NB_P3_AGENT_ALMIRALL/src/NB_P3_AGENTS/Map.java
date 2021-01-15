@@ -130,7 +130,17 @@ public class Map {
         return mapSet;
     }
 
+    /**
+     * Get de la altura del mapa
+     * @return altura del mapa
+     * @author Juan Pablo
+     */
     public int getHeight(){ return height; }
 
+    /**
+     * Get de la anchura del mapa
+     * @return anchura del mapa
+     * @author Juan Pablo
+     */
     public int getWidth(){ return width; }
 }

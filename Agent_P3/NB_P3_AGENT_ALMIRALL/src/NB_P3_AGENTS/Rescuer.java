@@ -144,7 +144,11 @@ public class Rescuer extends MoveDrone {
         return on;
     }
     
-    // Se ejecuta solo si esta encima de un ludwig
+    /**
+     * Metodo para recoger un Ludwig
+     * @return boolean
+     * @author Luis Escobar Reche
+     */
     public boolean takeLudwig(){
         JsonObject rescate = new JsonObject();
         

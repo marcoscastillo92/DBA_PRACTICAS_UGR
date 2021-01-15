@@ -218,9 +218,11 @@ public abstract class MoveDrone extends BasicDrone {
         return false;
     }
     
-    public JsonObject getProducts(){
-        JsonObject shopValues = new JsonObject();
-
+    /**
+     * Metodo para meter los productos en una cola de prioridades
+     * @author Luis Escobar Reche
+     */
+    public void getProducts(){
         products = new PriorityQueue<>(new sensorComparator());
         charge_products = new PriorityQueue<>(new sensorComparator());
         if(!shops.isEmpty()) {
@@ -259,7 +261,6 @@ public abstract class MoveDrone extends BasicDrone {
             Info("Se ha intentado consultar la tienda sin tener el id de la tienda: " + in.toString());
             status = Status.EXIT;
         }
-        return shopValues;
     }
     
     /**
@@ -289,6 +290,11 @@ public abstract class MoveDrone extends BasicDrone {
         return false;
     }
     
+    /**
+     * Método para mandar una moneda de un sensor a otro
+     * @param receiver nombre del dron que recibe la moneda
+     * @author Juan Pablo
+     */
     public void sendCoin(String receiver) {
         String coin = this.wallet.get(0);
         
@@ -308,6 +314,14 @@ public abstract class MoveDrone extends BasicDrone {
         }
     }
     
+    /**
+     * Método para comprar un sensor o recarga de una tienda
+     * @param shop tienda a la que comprar
+     * @param service referencia de sensor o recarga a comprar
+     * @param cost coste de la compra
+     * @return resultado de la compra (null si no ha podido comprar)
+     * @author Juan Pablo
+     */
     public String buy(String shop, String service, int cost) {
         JsonObject compra = new JsonObject();
         JsonArray payment = new JsonArray();
@@ -354,6 +368,10 @@ public abstract class MoveDrone extends BasicDrone {
         }
     }
     
+    /**
+     * Metodo para comprar sensores
+     * @author Luis Escobar Reche
+     */
     public void getSensors(){
         boolean thermalbought = false;
 
@@ -436,6 +454,10 @@ public abstract class MoveDrone extends BasicDrone {
         return droneHeight;
     }
     
+    /**
+     * Metodo para aterrizar el agente
+     * @author Luis Escobar Reche
+     */
     public void land(){
         ArrayList<String> landActions = new ArrayList<>();
         while (!this.isLanded()) {
@@ -658,6 +680,13 @@ public abstract class MoveDrone extends BasicDrone {
         return energy > 1000/2.5;
     }
     
+    /**
+     * Método que crea la lista de acciones necesarias para llegar de un nodo a otro
+     * @param from nodo inicial
+     * @param to nodo final
+     * @param compass orientación del dron
+     * @author Juan Pablo
+     */
     public void moveToNode(Node from, Node to, double compass) {
         // Cuanto se tiene que mover en el eje x y cuanto en el y
         int diffX = (int) (to.getX() - from.getX());
@@ -799,6 +828,11 @@ public abstract class MoveDrone extends BasicDrone {
         }
     }
     
+    /**
+     * Metodo para comprobar si esta en el suelo
+     * @return boolean
+     * @author Luis Escobar Reche
+     */
     public boolean isLanded(){
         boolean is = false;
         int[] position = getActualPosition();
